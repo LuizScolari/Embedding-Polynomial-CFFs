@@ -27,147 +27,127 @@ typedef struct {
 // --- Protótipos de Funções ---
 void get_element_by_arithmetic(fq_nmod_t result, ulong i, fq_nmod_ctx_t ctx);
 void add_element_to_list(fq_nmod_t** list, long* count, long* capacity, const fq_nmod_t element, const fq_nmod_ctx_t ctx);
+void add_poly_to_list(fq_nmod_poly_t** list, long* count, long* capacity, const fq_nmod_poly_t poly, const fq_nmod_ctx_t ctx);
 subfield_partition* partition_by_subfields(const long* Fq_steps, int num_steps, const fq_nmod_ctx_t ctx);
-fq_nmod_poly_t* generate_all_polynomials(long* poly_count, long max_degree, const fq_nmod_ctx_t ctx);
-void generate_recursive(fq_nmod_poly_t* poly_list, long* current_index, fq_nmod_poly_t current_poly, long degree, long max_degree, const fq_nmod_t* elements, long num_elements, const fq_nmod_ctx_t ctx);
+fq_nmod_poly_t* generate_polynomials_from_coeffs(long* poly_count, long max_degree, const fq_nmod_t* coeffs, long num_coeffs, const fq_nmod_ctx_t ctx);
+void generate_recursive_sorted(fq_nmod_poly_t* poly_list, long* current_index, fq_nmod_poly_t current_poly, long degree, const fq_nmod_t* elements, long num_elements, const fq_nmod_ctx_t ctx);
 fq_nmod_t** create_evaluation_matrix(long num_points, long num_polys, const fq_nmod_t* points, const fq_nmod_poly_t* polys, const fq_nmod_ctx_t ctx);
 void free_evaluation_matrix(fq_nmod_t** matrix, long num_points, long num_polys, const fq_nmod_ctx_t ctx);
+int fq_nmod_poly_is_in_list(const fq_nmod_poly_t poly, const fq_nmod_poly_t* list, long list_count, const fq_nmod_ctx_t ctx);
 
 
 int main() {
-    printf("FLINT version: %s\n\n", FLINT_VERSION);
-
     // --- Parâmetros ---
-    fmpz_t pz;
-    fmpz_init(pz);
-    fmpz_set_ui(pz, 2);
-    long D = 2; // Campo principal será F_q^d
-    
-    // Subcorpos que queremos encontrar dentro de F_q
-    long Fq_steps[] = {4}; 
-    int num_steps = 1;
+    fmpz_t pz; fmpz_init(pz); fmpz_set_ui(pz, 2);
+    long D = 2; // F_q^d
+    long Fq_steps[] = {2,4}; 
+    int num_steps = 2;
 
-    // --- INICIALIZAÇÃO DO CORPO ---
-
-    // Criar o polinômio irredutível
-    nmod_poly_t mod_poly;
-    nmod_poly_init(mod_poly, 2);
-    // Definir o polinômio, um irredutível para F_q
-    nmod_poly_set_coeff_ui(mod_poly, 2, 1);
-    nmod_poly_set_coeff_ui(mod_poly, 1, 1);
+    // --- Inicialização do Corpo ---
+    nmod_poly_t mod_poly; nmod_poly_init(mod_poly, 2);
+    nmod_poly_set_coeff_ui(mod_poly, 2, 1); 
+    nmod_poly_set_coeff_ui(mod_poly, 1, 1); 
     nmod_poly_set_coeff_ui(mod_poly, 0, 1);
-
-    // Inicializar o contexto usando nosso polinômio
-    fq_nmod_ctx_t ctx;
-    fq_nmod_ctx_init_modulus(ctx, mod_poly, "a");
+    fq_nmod_ctx_t ctx; fq_nmod_ctx_init_modulus(ctx, mod_poly, "a");
+    printf("Contexto inicializado para F_%ld^%ld.\n\n", fmpz_get_ui(pz), D);
+    nmod_poly_clear(mod_poly);
     
-    printf("Contexto inicializado para F_%ld^%ld com módulo: ", fmpz_get_ui(pz), D);
-    nmod_poly_print(mod_poly);
-    printf("\n\n");
-    nmod_poly_clear(mod_poly); // Já podemos limpar o polinômio
-    
-    // --- Execução da Lógica de Particionamento ---
+    // --- Particionamento de Elementos ---
     subfield_partition* partitions = partition_by_subfields(Fq_steps, num_steps, ctx);
 
-    // --- Impressão dos Resultados ---
-    for (int i = 0; i < num_steps; i++) {
-        printf("--- Subcorpo F_%ld ---\n", partitions[i].q);
-        printf("  Total de elementos (F_sets): %ld\n", partitions[i].count_all);
-        printf("  Elementos 'Only': %ld\n", partitions[i].count_only);
-        
-        printf("  Conteúdo de 'All': { ");
-        for(long j = 0; j < partitions[i].count_all; j++) {
-            fq_nmod_print_pretty(partitions[i].all_elements[j], ctx);
-            if (j < partitions[i].count_all - 1) printf(", ");
-        }
-        printf(" }\n");
-
-        printf("  Conteúdo de 'Only': { ");
-        for(long j = 0; j < partitions[i].count_only; j++) {
-            fq_nmod_print_pretty(partitions[i].only_elements[j], ctx);
-            if (j < partitions[i].count_only - 1) printf(", ");
-        }
-        printf(" }\n\n");
-    }
-
-    // --- Geração dos Polinômios ---
+    // --- GERAÇÃO DE POLINÔMIOS ---
     long max_poly_degree = 1;
-    long num_polys = 0;
-    fq_nmod_poly_t* all_polys = generate_all_polynomials(&num_polys, max_poly_degree, ctx);
+    
+    // Inicializa uma lista dinâmica para 'all_polys'
+    fq_nmod_poly_t* all_polys = NULL;
+    long all_polys_count = 0;
+    long all_polys_capacity = 0;
 
-    // --- AVALIAÇÃO DE POLINÔMIOS (usando a nova função) ---
-    if (all_polys != NULL && partitions != NULL) {
-        printf("\n--- Avaliando Polinômios ---\n");
+    printf("--- Gerando Polinômios Particionados ---\n");
+    // Itera sobre as partições de subcorpos (F_q, F_qˆd, ...)
+    for(int i = 0; i < num_steps; i++) {
+        long num_polys_level = 0;
+        subfield_partition current_partition = partitions[i];
         
-        // Seleciona os pontos e polinômios para avaliar
-        subfield_partition Fq_partition = partitions[0]; 
-        long num_points_to_eval = Fq_partition.count_all;
-
-        // Chama a função para criar a matriz de avaliação
-        fq_nmod_t** evals = create_evaluation_matrix(
-            num_points_to_eval, 
-            num_polys, 
-            Fq_partition.all_elements, 
-            all_polys, 
-            ctx
+        // Gera todos os polinômios com coeficientes do subcorpo atual
+        fq_nmod_poly_t* level_polys = generate_polynomials_from_coeffs(
+            &num_polys_level, max_poly_degree, 
+            current_partition.all_elements, current_partition.count_all, ctx
         );
 
-        // Imprime a matriz de resultados para verificação
-        if (evals != NULL) {
-            printf("Matriz de Avaliação [ponto][polinômio]:\n");
-            for (long i = 0; i < num_polys; i++) {
-                printf("  Ponto "); fq_nmod_print_pretty(Fq_partition.all_elements[i], ctx); printf(": [ ");
-                for (long j = 0; j < num_polys; j++) {
-                    fq_nmod_print_pretty(evals[i][j], ctx);
-                    if (j < num_polys - 1) printf(", ");
-                }
-                printf(" ]\n");
-            }
-
-            // Chama a função para liberar a memória da matriz
-            free_evaluation_matrix(evals, num_points_to_eval, num_polys, ctx);
+        // Adiciona os polinômios gerados à lista principal, se ainda não estiverem lá
+        for(long j = 0; j < num_polys_level; j++) {
+            int found = fq_nmod_poly_is_in_list(level_polys[j], all_polys, all_polys_count, ctx);
+            if (!found) {
+                add_poly_to_list(&all_polys, &all_polys_count, &all_polys_capacity, level_polys[j], ctx);
+            } 
         }
+
+        // Libera a lista temporária de polinômios deste nível
+        for (long j = 0; j < num_polys_level; j++) {
+            fq_nmod_poly_clear(level_polys[j], ctx);
+        }
+        free(level_polys);
     }
-    
-    
-    // --- Impressão dos Resultados ---
+
+    // --- Impressão dos Polinômios Únicos Gerados ---
     if (all_polys != NULL) {
-        printf("--- %ld Polinômios Gerados (Grau <= %ld) ---\n", num_polys, max_poly_degree);
-        for (long i = 0; i < num_polys; i++) {
-            printf("P_%ld(a) = ", i);
-            // fq_nmod_poly_print_pretty usa 'x' como variável por padrão
+        printf("\n--- %ld Polinômios Únicos Gerados (Grau <= %ld) ---\n", all_polys_count, max_poly_degree);
+        for (long i = 0; i < all_polys_count; i++) {
+            printf("  P_%ld(x) = ", i);
             fq_nmod_poly_print_pretty(all_polys[i], "x", ctx);
             printf("\n");
         }
+    }
 
-        // --- Liberação de Memória (MUITO IMPORTANTE) ---
-        printf("\nLimpando a memória dos polinômios...\n");
-        for (long i = 0; i < num_polys; i++) {
+    // --- AVALIAÇÃO DE POLINÔMIOS ---
+    if (all_polys != NULL && partitions != NULL && num_steps > 1) {
+        printf("\n--- Avaliando Polinômios ---\n");
+        subfield_partition f4_partition = partitions[num_steps - 1]; 
+        long num_points_to_eval = f4_partition.count_all;
+
+        fq_nmod_t** evals = create_evaluation_matrix(
+            num_points_to_eval, all_polys_count, 
+            f4_partition.all_elements, all_polys, ctx
+        );
+
+        if (evals != NULL) {
+            printf("Matriz de Avaliação Completa [ponto][polinômio]:\n");
+            
+            for (long i = 0; i < num_points_to_eval; i++) {
+                printf("  Ponto "); fq_nmod_print_pretty(f4_partition.all_elements[i], ctx); printf(": [ ");
+                for (long j = 0; j < all_polys_count; j++) {
+                    fq_nmod_print_pretty(evals[i][j], ctx);
+                    if (j < all_polys_count - 1) printf(", ");
+                }
+                printf(" ]\n");
+            }
+            free_evaluation_matrix(evals, num_points_to_eval, all_polys_count, ctx);
+        }
+    }
+    
+    // --- Limpeza de Memória ---
+    printf("\nLimpando a memória...\n");
+    if (all_polys != NULL) {
+        for (long i = 0; i < all_polys_count; i++) {
             fq_nmod_poly_clear(all_polys[i], ctx);
         }
         free(all_polys);
-        printf("Memória liberada.\n");
     }
-    
-
-    // --- Liberação de Memória (MUITO IMPORTANTE) ---
-    printf("Limpando a memória...\n");
-    for (int i = 0; i < num_steps; i++) {
-        for (long j = 0; j < partitions[i].capacity_all; j++) fq_nmod_clear(partitions[i].all_elements[j], ctx);
-        for (long j = 0; j < partitions[i].capacity_only; j++) fq_nmod_clear(partitions[i].only_elements[j], ctx);
-        free(partitions[i].all_elements);
-        free(partitions[i].only_elements);
+    if (partitions != NULL) {
+        for (int i = 0; i < num_steps; i++) {
+            for (long j = 0; j < partitions[i].capacity_all; j++) fq_nmod_clear(partitions[i].all_elements[j], ctx);
+            for (long j = 0; j < partitions[i].capacity_only; j++) fq_nmod_clear(partitions[i].only_elements[j], ctx);
+            free(partitions[i].all_elements); free(partitions[i].only_elements);
+        }
+        free(partitions);
     }
-    free(partitions);
     fmpz_clear(pz);
     fq_nmod_ctx_clear(ctx);
     printf("Memória liberada.\n");
-
-
     
     return 0;
 }
-
 
 /**
  * @brief Itera por todos os elementos do corpo principal e os particiona
@@ -272,64 +252,51 @@ void get_element_by_arithmetic(fq_nmod_t result, ulong i, fq_nmod_ctx_t ctx) {
 /**
  * @brief Função principal que orquestra a geração de todos os polinômios.
  */
-fq_nmod_poly_t* generate_all_polynomials(long* poly_count, long max_degree, const fq_nmod_ctx_t ctx) {
-    fmpz_t order_z, total_polys_z;
-    fmpz_init(order_z);
+fq_nmod_poly_t* generate_polynomials_from_coeffs(long* poly_count, long max_degree, const fq_nmod_t* coeffs, long num_coeffs, const fq_nmod_ctx_t ctx) {
+    fmpz_t num_coeffs_z, total_polys_z;
+    fmpz_init(num_coeffs_z);
     fmpz_init(total_polys_z);
-    
-    fq_nmod_ctx_order(order_z, ctx);
-    long q = fmpz_get_si(order_z);
+    fmpz_set_si(num_coeffs_z, num_coeffs);
 
-    // Calcula o número total de polinômios: q^(max_degree + 1)
-    fmpz_pow_ui(total_polys_z, order_z, max_degree + 1);
+    // Calcula o número total de polinômios: (num_coeffs)^(max_degree + 1)
+    fmpz_pow_ui(total_polys_z, num_coeffs_z, max_degree + 1);
     *poly_count = fmpz_get_si(total_polys_z);
 
-    // Gera a lista de todos os elementos do corpo (para os coeficientes)
-    fq_nmod_t* elements = (fq_nmod_t*) malloc(q * sizeof(fq_nmod_t));
-    for (long i = 0; i < q; i++) {
-        fq_nmod_init(elements[i], ctx);
-        get_element_by_arithmetic(elements[i], i, ctx);
-    }
-    
     // Aloca memória para a lista de polinômios
     fq_nmod_poly_t* poly_list = (fq_nmod_poly_t*) malloc((*poly_count) * sizeof(fq_nmod_poly_t));
     for(long i=0; i < (*poly_count); i++) {
         fq_nmod_poly_init(poly_list[i], ctx);
     }
 
-    // Prepara o pontapé inicial para a recursão
     fq_nmod_poly_t temp_poly;
     fq_nmod_poly_init(temp_poly, ctx);
     long start_index = 0;
     
-    printf("Gerando %ld polinômios...\n", *poly_count);
-    generate_recursive(poly_list, &start_index, temp_poly, 0, max_degree, elements, q, ctx);
+    printf("Gerando %ld polinômios com %ld coeficientes possíveis...\n", *poly_count, num_coeffs);
+    generate_recursive_sorted(poly_list, &start_index, temp_poly, max_degree, coeffs, num_coeffs, ctx);
 
-    // Libera a memória temporária
     fq_nmod_poly_clear(temp_poly, ctx);
-    for (long i = 0; i < q; i++) fq_nmod_clear(elements[i], ctx);
-    free(elements);
-    fmpz_clear(order_z);
+    fmpz_clear(num_coeffs_z);
     fmpz_clear(total_polys_z);
     
     return poly_list;
 }
 
 /**
- * @brief Função recursiva que constrói os polinômios coeficiente por coeficiente.
+ * @brief Função recursiva que constrói os polinômios, priorizando o termo de maior grau.
+ * Isso resulta em uma lista de polinômios mais ordenada e intuitiva.
  */
-void generate_recursive(
+void generate_recursive_sorted(
     fq_nmod_poly_t* poly_list, 
     long* current_index, 
     fq_nmod_poly_t current_poly, 
-    long degree, 
-    long max_degree, 
+    long degree, // Começará com max_degree e diminuirá
     const fq_nmod_t* elements, 
     long num_elements,
     const fq_nmod_ctx_t ctx) 
 {
-    // Caso base: se já definimos todos os coeficientes, o polinômio está pronto.
-    if (degree > max_degree) {
+    // Caso base: se já definimos todos os coeficientes (de max_degree até 0), o polinômio está pronto.
+    if (degree < 0) {
         fq_nmod_poly_set(poly_list[*current_index], current_poly, ctx);
         (*current_index)++;
         return;
@@ -338,7 +305,8 @@ void generate_recursive(
     // Passo recursivo: para o grau atual, tente todos os elementos como coeficiente.
     for (long i = 0; i < num_elements; i++) {
         fq_nmod_poly_set_coeff(current_poly, degree, elements[i], ctx);
-        generate_recursive(poly_list, current_index, current_poly, degree + 1, max_degree, elements, num_elements, ctx);
+        // Chama a recursão para o próximo grau (um grau menor).
+        generate_recursive_sorted(poly_list, current_index, current_poly, degree - 1, elements, num_elements, ctx);
     }
 }
 
@@ -389,4 +357,32 @@ void free_evaluation_matrix(fq_nmod_t** matrix, long num_points, long num_polys,
     }
     // Finalmente, libera o array de ponteiros
     free(matrix);
+}
+
+/**
+ * @brief Verifica se um polinômio existe em uma lista de polinômios.
+ * @return 1 se encontrado, 0 caso contrário.
+ */
+int fq_nmod_poly_is_in_list(const fq_nmod_poly_t poly, const fq_nmod_poly_t* list, long list_count, const fq_nmod_ctx_t ctx) {
+    for (long i = 0; i < list_count; i++) {
+        if (fq_nmod_poly_equal(poly, list[i], ctx)) {
+            return 1; // Encontrado
+        }
+    }
+    return 0; // Não encontrado
+}
+
+/**
+ * @brief Adiciona um polinômio a um array dinâmico de polinômios.
+ */
+void add_poly_to_list(fq_nmod_poly_t** list, long* count, long* capacity, const fq_nmod_poly_t poly, const fq_nmod_ctx_t ctx) {
+    if (*count >= *capacity) {
+        *capacity = (*capacity == 0) ? 8 : (*capacity) * 2;
+        *list = realloc(*list, (*capacity) * sizeof(fq_nmod_poly_t));
+        for (long i = *count; i < *capacity; i++) {
+            fq_nmod_poly_init((*list)[i], ctx);
+        }
+    }
+    fq_nmod_poly_set((*list)[*count], poly, ctx);
+    (*count)++;
 }
