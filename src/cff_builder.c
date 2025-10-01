@@ -1,13 +1,13 @@
-// Run command -> gcc -I/opt/homebrew/include -L/opt/homebrew/lib test_flint.c -o test_flint -lflint -lgmp
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h> // Para calloc
+#include <string.h> 
 #include "flint/flint.h"
 #include "flint/fmpz.h"
 #include "flint/fq_nmod.h"
 #include "flint/fq_nmod_poly.h"
 #include "flint/nmod_poly.h"
 #include "cff_builder.h"
+#include "cff_file_generator.h"
 
 // --- Protótipos de Funções ---
 void get_element_by_arithmetic(fq_nmod_t result, ulong i, fq_nmod_ctx_t ctx);
@@ -23,9 +23,52 @@ void add_pair_to_list(element_pair** list, long* count, long* capacity, const fq
 combination_partitions generate_combinations(const subfield_partition* partitions, int num_partitions, const fq_nmod_ctx_t ctx);
 int** generate_single_cff(long* num_rows, const element_pair* combos,  long num_combos, const fq_nmod_t* points_for_eval,  long num_points, fq_nmod_t** evals, long num_polys, const fq_nmod_ctx_t ctx);
 long find_element_index(const fq_nmod_t element, const fq_nmod_t* list, long list_count, const fq_nmod_ctx_t ctx);
+void free_matrix(int** matrix, long rows);
+generated_cffs generate_new_cff_blocks(long* Fq_steps, long* k_steps, int num_steps);
+static void free_generated_cffs(generated_cffs* cffs);
+void free_subfield_partitions(subfield_partition* partitions, int num_steps, const fq_nmod_ctx_t ctx);
+void free_combination_partitions(combination_partitions* combos, const fq_nmod_ctx_t ctx);
+
+void embeed_cff(long* Fq_steps, long* k_steps, int num_steps){
+    const char* filename = "cff_matrix.txt";
+    long old_rows = 0, old_cols = 0;
+    int** cff_old_old = read_cff_from_file(filename, &old_rows, &old_cols);
+
+    generated_cffs new_blocks = generate_new_cff_blocks(Fq_steps, k_steps, num_steps);
+
+    long new_total_rows = old_rows + new_blocks.rows_new_old;
+    long new_total_cols = old_cols + new_blocks.cols_old_new;
+    
+    int** final_cff = (int**) malloc(new_total_rows * sizeof(int*));
+    for (long i = 0; i < new_total_rows; i++) {
+        final_cff[i] = (int*) calloc(new_total_cols, sizeof(int));
+    }
+
+    printf("Concatenando matrizes para formar uma matriz final de %ldx%ld.\n", new_total_rows, new_total_cols);
+
+    // Copia bloco 1: CFF_old_old
+    for(long i=0; i < old_rows; i++) memcpy(final_cff[i], cff_old_old[i], old_cols * sizeof(int));
+
+    // Copia bloco 2: CFF_old_new
+    for(long i=0; i < new_blocks.rows_old_new; i++) memcpy(&final_cff[i][old_cols], new_blocks.cff_old_new[i], new_blocks.cols_old_new * sizeof(int));
+    
+    // Copia bloco 3: CFF_new_old
+    for(long i=0; i < new_blocks.rows_new_old; i++) memcpy(final_cff[old_rows + i], new_blocks.cff_new_old[i], new_blocks.cols_new_old * sizeof(int));
+    
+    // Copia bloco 4: CFF_new
+    for(long i=0; i < new_blocks.rows_new; i++) memcpy(&final_cff[old_rows + i][old_cols], new_blocks.cff_new[i], new_blocks.cols_new * sizeof(int));
+
+    write_cff_to_file(filename, final_cff, new_total_rows, new_total_cols);
+
+    // 5. LIMPEZA TOTAL DA MEMÓRIA
+    printf("\nLimpando toda a memória.\n");
+    free_matrix(cff_old_old, old_rows);
+    free_generated_cffs(&new_blocks);
+    free_matrix(final_cff, new_total_rows);
+}
 
 
-generated_cffs generate_new_cff_blocks(long* Fq_steps, int num_steps, long max_poly_degree) {
+generated_cffs generate_new_cff_blocks(long* Fq_steps, long* k_steps, int num_steps) {
     generated_cffs result = {0};
     
     // --- ETAPA 0: PARÂMETROS E INICIALIZAÇÃO ---
@@ -35,7 +78,7 @@ generated_cffs generate_new_cff_blocks(long* Fq_steps, int num_steps, long max_p
     nmod_poly_t mod_poly; 
     nmod_poly_init(mod_poly, Fq_steps[0]);
     nmod_poly_init(mod_poly, fmpz_get_ui(pz));
-    nmod_poly_set_coeff_ui(mod_poly, 4, 1);
+    nmod_poly_set_coeff_ui(mod_poly, 2, 1);
     nmod_poly_set_coeff_ui(mod_poly, 1, 1);
     nmod_poly_set_coeff_ui(mod_poly, 0, 1);
 
@@ -55,7 +98,7 @@ generated_cffs generate_new_cff_blocks(long* Fq_steps, int num_steps, long max_p
         subfield_partition old_partition = partitions[i];
 
         fq_nmod_poly_t* old_polys_bySteps = generate_polynomials_from_coeffs(
-            &num_polys_in_step, max_poly_degree, old_partition.all_elements,
+            &num_polys_in_step, k_steps[i], old_partition.all_elements,
             old_partition.count_all, ctx);
 
         if (num_polys_in_step > 0) {
@@ -109,7 +152,7 @@ generated_cffs generate_new_cff_blocks(long* Fq_steps, int num_steps, long max_p
 
     subfield_partition all_partition = partitions[num_steps - 1];
     long num_all_polys = 0;
-    fq_nmod_poly_t* all_polys = generate_polynomials_from_coeffs(&num_all_polys, max_poly_degree, all_partition.all_elements, all_partition.count_all, ctx);
+    fq_nmod_poly_t* all_polys = generate_polynomials_from_coeffs(&num_all_polys, k_steps[num_steps-1], all_partition.all_elements, all_partition.count_all, ctx);
     
     fq_nmod_poly_t* new_polys = (fq_nmod_poly_t*) malloc(num_all_polys * sizeof(fq_nmod_poly_t));
     long num_new_polys = 0;
@@ -576,5 +619,11 @@ void free_evaluation_matrix(fq_nmod_t** matrix, long num_points, long num_polys,
         }
     }
     // Finalmente, libera o array de ponteiros
+    free(matrix);
+}
+
+void free_matrix(int** matrix, long rows) {
+    if (!matrix) return;
+    for (long i = 0; i < rows; i++) free(matrix[i]);
     free(matrix);
 }

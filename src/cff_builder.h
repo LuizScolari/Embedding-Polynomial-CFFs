@@ -43,15 +43,7 @@ typedef struct {
     long cols_new;
 } generated_cffs;
 
-
-// --- Funções Públicas ---
-
-// A função principal do nosso módulo: gera os 3 novos blocos da CFF
-generated_cffs generate_new_cff_blocks(long* Fq_steps, int num_steps, long max_poly_degree);
-
-// Funções para liberar a memória das estruturas retornadas
-void free_subfield_partitions(subfield_partition* partitions, int num_steps, const fq_nmod_ctx_t ctx);
-void free_combination_partitions(combination_partitions* combos, const fq_nmod_ctx_t ctx);
-void free_generated_cffs(generated_cffs* cffs);
+// Função pública que a main acessa 
+void embeed_cff(long* Fq_steps, long* k_steps, int num_steps);
 
 #endif // CFF_BUILDER_H
