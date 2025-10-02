@@ -53,9 +53,9 @@ def verificar_matriz_soma_uniforme(caminho_arquivo, soma_esperada_linha, soma_es
         print("Válido!")
 
 
-caminho_do_arquivo = 'cff_matrix.txt'
-soma_esperada_para_cada_linha = 16
-soma_esperada_para_cada_coluna = 4
+caminho_do_arquivo = 'CFFs/7-CFF(256,4096).txt'
+soma_esperada_para_cada_linha = 256
+soma_esperada_para_cada_coluna = 16
 
 print(f"Verificando a matriz com soma esperada de '{soma_esperada_para_cada_linha}' para as linhas e '{soma_esperada_para_cada_coluna}' para as colunas.\n")
 

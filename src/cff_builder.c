@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h> 
+#include <math.h>
 #include "flint/flint.h"
 #include "flint/fmpz.h"
 #include "flint/fq_nmod.h"
@@ -30,9 +31,14 @@ void free_subfield_partitions(subfield_partition* partitions, int num_steps, con
 void free_combination_partitions(combination_partitions* combos, const fq_nmod_ctx_t ctx);
 
 void embeed_cff(long* Fq_steps, long* k_steps, int num_steps){
-    const char* filename = "cff_matrix.txt";
+    int d0 = (Fq_steps[num_steps-2]-1)/(k_steps[num_steps-2]);
+    long t0 = Fq_steps[num_steps-2] * Fq_steps[num_steps-2];
+    long n0 = (long)pow(Fq_steps[num_steps-2], k_steps[num_steps-2] + 1);
+    char filename0[100]; // buffer para a string
+    snprintf(filename0, sizeof(filename0), "CFFs/%ld-CFF(%ld,%ld).txt", d0, t0, n0);
+
     long old_rows = 0, old_cols = 0;
-    int** cff_old_old = read_cff_from_file(filename, &old_rows, &old_cols);
+    int** cff_old_old = read_cff_from_file(filename0, &old_rows, &old_cols);
 
     generated_cffs new_blocks = generate_new_cff_blocks(Fq_steps, k_steps, num_steps);
 
@@ -58,7 +64,13 @@ void embeed_cff(long* Fq_steps, long* k_steps, int num_steps){
     // Copia bloco 4: CFF_new
     for(long i=0; i < new_blocks.rows_new; i++) memcpy(&final_cff[old_rows + i][old_cols], new_blocks.cff_new[i], new_blocks.cols_new * sizeof(int));
 
-    write_cff_to_file(filename, final_cff, new_total_rows, new_total_cols);
+    int d1 = (Fq_steps[num_steps-1]-1)/(k_steps[num_steps-1]);
+    long t1 = Fq_steps[num_steps-1] * Fq_steps[num_steps-1];
+    long n1 = (long)pow(Fq_steps[num_steps-1], k_steps[num_steps-1] + 1);
+    char filename1[100]; // buffer para a string
+    snprintf(filename1, sizeof(filename1), "CFFs/%ld-CFF(%ld,%ld).txt", d1, t1, n1);
+
+    write_cff_to_file(filename1, final_cff, new_total_rows, new_total_cols);
 
     // 5. LIMPEZA TOTAL DA MEMÓRIA
     printf("\nLimpando toda a memória.\n");
@@ -78,7 +90,7 @@ generated_cffs generate_new_cff_blocks(long* Fq_steps, long* k_steps, int num_st
     nmod_poly_t mod_poly; 
     nmod_poly_init(mod_poly, Fq_steps[0]);
     nmod_poly_init(mod_poly, fmpz_get_ui(pz));
-    nmod_poly_set_coeff_ui(mod_poly, 2, 1);
+    nmod_poly_set_coeff_ui(mod_poly, 4, 1);
     nmod_poly_set_coeff_ui(mod_poly, 1, 1);
     nmod_poly_set_coeff_ui(mod_poly, 0, 1);
 
@@ -180,6 +192,28 @@ generated_cffs generate_new_cff_blocks(long* Fq_steps, long* k_steps, int num_st
 
     // --- ETAPA 3: GERAR COMBINAÇÕES DE ELEMENTOS ---
     combination_partitions combos = generate_combinations(partitions, num_steps, ctx);
+
+    /*
+    printf("--- Combos Old (Total: %ld) ---\n", combos.count_old);
+    for (long i = 0; i < combos.count_old; i++) {
+        printf("Par %ld: (", i);
+        fq_nmod_print_pretty(combos.combos_old[i].x, ctx); // Correto: .x
+        printf(", ");
+        fq_nmod_print_pretty(combos.combos_old[i].y, ctx); // Correto: .y
+        printf(")\n");
+    }
+    printf("\n");
+
+    printf("--- Combos New (Total: %ld) ---\n", combos.count_new);
+    for (long i = 0; i < combos.count_new; i++) {
+        printf("Par %ld: (", i);
+        fq_nmod_print_pretty(combos.combos_new[i].x, ctx); // Correto: combos_new e .x
+        printf(", ");
+        fq_nmod_print_pretty(combos.combos_new[i].y, ctx); // Correto: combos_new e .y
+        printf(")\n");
+    }
+    printf("----------------------------------\n\n");
+    */
 
     // --- ETAPA 4: CRIAR MATRIZES DE AVALIAÇÃO ---
     fq_nmod_t* points_for_eval = all_partition.all_elements;
