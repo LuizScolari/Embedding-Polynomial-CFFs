@@ -94,19 +94,16 @@ generated_cffs generate_new_cff_blocks(long* Fq_steps, long* k_steps, int num_st
     generated_cffs result = {0};
     
     // --- ETAPA 0: PARÂMETROS E INICIALIZAÇÃO ---
-    fmpz_t pz; fmpz_init(pz); 
-    fmpz_set_ui(pz, Fq_steps[0]);
+    ulong p = Fq_steps[0];
+    long q = Fq_steps[num_steps-1]; 
+    long n = (long)round(log(q) / log(p));
 
-    nmod_poly_t mod_poly; 
-    nmod_poly_init(mod_poly, Fq_steps[0]);
-    nmod_poly_init(mod_poly, fmpz_get_ui(pz));
-    nmod_poly_set_coeff_ui(mod_poly, 4, 1);
-    nmod_poly_set_coeff_ui(mod_poly, 1, 1);
-    nmod_poly_set_coeff_ui(mod_poly, 0, 1);
+    fmpz_t pz;
+    fmpz_init(pz);
+    fmpz_set_ui(pz, p);
 
-    fq_nmod_ctx_t ctx; 
-    fq_nmod_ctx_init_modulus(ctx, mod_poly, "a");
-    nmod_poly_clear(mod_poly);
+    fq_nmod_ctx_t ctx;
+    fq_nmod_ctx_init_ui(ctx, p, n, "a");
     
     // --- ETAPA 1: PARTICIONAR ELEMENTOS ---
     subfield_partition* partitions = partition_by_subfields(Fq_steps, num_steps, ctx);
@@ -255,7 +252,6 @@ generated_cffs generate_new_cff_blocks(long* Fq_steps, long* k_steps, int num_st
     if (new_polys != NULL) { for (long i = 0; i < num_new_polys; i++) fq_nmod_poly_clear(new_polys[i], ctx); free(new_polys); }
     if (all_polys != NULL) { for (long i = 0; i < num_all_polys; i++) fq_nmod_poly_clear(all_polys[i], ctx); free(all_polys); }
     free_subfield_partitions(partitions, num_steps, ctx);
-    fmpz_clear(pz);
     fq_nmod_ctx_clear(ctx);
     fq_nmod_ctx_clear(global_ctx);
     global_ctx_initialized = 0;
