@@ -37,17 +37,88 @@ gboolean fq_nmod_equal_func(gconstpointer a, gconstpointer b);
 void g_array_destroy_wrapper(gpointer data);
 void g_hash_table_destroy_wrapper(gpointer data);
 
-void embeed_cff(long* Fq_steps, long* k_steps, int num_steps){
-    int d0 = (Fq_steps[num_steps-2]-1)/(k_steps[num_steps-2]);
-    long t0 = Fq_steps[num_steps-2] * Fq_steps[num_steps-2];
-    long n0 = (long)pow(Fq_steps[num_steps-2], k_steps[num_steps-2] + 1);
+void generate_cff(char construction, long fq, long k) {
+    int d0 = (fq - 1) / k;
+    long t0 = fq * fq;
+    long n0 = (long)pow(fq, k + 1);
+    char filename0[100];
+    snprintf(filename0, sizeof(filename0), "CFFs/%d-CFF(%ld,%ld).txt", d0, t0, n0);
+    printf("Gerando CFF inicial em '%s'...\n", filename0);
+
+    long fq_array[1] = { fq };
+    long k_array[1] = { k };
+    int num_steps = 1;
+
+    generated_cffs new_blocks = generate_new_cff_blocks(fq_array, k_array, num_steps);
+
+    int** final_cff = new_blocks.cff_new;
+    long final_rows = new_blocks.rows_new;
+    long final_cols = new_blocks.cols_new;
+
+    if (final_cff == NULL) {
+        printf("Erro: Falha ao gerar a matriz CFF inicial.\n");
+        return;
+    }
+    printf("Matriz CFF inicial de %ldx%ld gerada.\n", final_rows, final_cols);
+
+    write_cff_to_file(filename0, construction, fq_array, 1, k_array, 1, final_cff, final_rows, final_cols);
+
+    new_blocks.cff_old_new = NULL;
+    new_blocks.cff_new_old = NULL;
+
+    free_generated_cffs(&new_blocks); 
+}
+
+void embeed_cff(char construction, long* Fq_steps, long* k_steps){
+    int d0 = (Fq_steps[0]-1)/(k_steps[0]);
+    long t0 = Fq_steps[0] * Fq_steps[0];
+    long n0 = (long)pow(Fq_steps[0], k_steps[0] + 1);
     char filename0[100]; // buffer para a string
     snprintf(filename0, sizeof(filename0), "CFFs/%d-CFF(%ld,%ld).txt", d0, t0, n0);
 
     long old_rows = 0, old_cols = 0;
+    struct cff_parameters* params = read_parameters(filename0);
+    if (params == NULL) {
+        printf("Erro ao ler parâmetros do arquivo %s\n", filename0);
+        return;
+    }
+
     int** cff_old_old = read_cff_from_file(filename0, &old_rows, &old_cols);
 
-    generated_cffs new_blocks = generate_new_cff_blocks(Fq_steps, k_steps, num_steps);
+    int new_fqs_count = params->fqs_count + 1;
+    int new_ks_count = params->ks_count + 1;
+    long* new_Fq_steps = (long*) malloc(new_fqs_count * sizeof(long));
+    long* new_k_steps  = (long*) malloc(new_ks_count * sizeof(long));
+
+    if (new_Fq_steps == NULL || new_k_steps == NULL) {
+        printf("Erro: Falha ao alocar memória para conversão dos passos.\n");
+        free(params->Fqs);
+        free(params->ks);
+        free(params);
+        free(new_Fq_steps); 
+        free(new_k_steps);
+        free_matrix(cff_old_old, old_rows);
+        return;
+    }
+
+    for (int i = 0; i < new_fqs_count; i++) {
+        if (i < params->fqs_count) { 
+            new_Fq_steps[i] = (long)params->Fqs[i];
+        } else {
+            new_Fq_steps[i] = Fq_steps[1];
+        }
+    }
+
+
+    for (int i = 0; i < new_ks_count; i++) {
+        if (i < params->ks_count) { 
+            new_k_steps[i] = (long)params->ks[i];
+        } else {
+            new_k_steps[i] = k_steps[1];
+        }
+    }
+
+    generated_cffs new_blocks = generate_new_cff_blocks(new_Fq_steps, new_k_steps, new_fqs_count);
 
     long new_total_rows = old_rows + new_blocks.rows_new_old;
 
@@ -60,8 +131,6 @@ void embeed_cff(long* Fq_steps, long* k_steps, int num_steps){
         final_cff[i] = (int*) calloc(new_total_cols, sizeof(int));
     }
 
-    printf("Concatenando matrizes para formar uma matriz final de %ldx%ld.\n", new_total_rows, new_total_cols);
-
     // Copia bloco 1: CFF_old_old
     for(long i=0; i < old_rows; i++) memcpy(final_cff[i], cff_old_old[i], old_cols * sizeof(int));
 
@@ -72,23 +141,26 @@ void embeed_cff(long* Fq_steps, long* k_steps, int num_steps){
     for(long i=0; i < new_blocks.rows_new_old; i++) memcpy(final_cff[old_rows + i], new_blocks.cff_new_old[i], new_blocks.cols_new_old * sizeof(int));
     
     // Copia bloco 4: CFF_new
-    for(long i=0; i < new_blocks.rows_new; i++) memcpy(&final_cff[old_rows + i][old_cols], new_blocks.cff_new[i], new_blocks.cols_new * sizeof(int));
+    for(long i=0; i < new_blocks.rows_new; i++) memcpy(&final_cff[old_rows + i][new_blocks.cols_new_old], new_blocks.cff_new[i], new_blocks.cols_new * sizeof(int));
 
-    int d1 = (Fq_steps[num_steps-1]-1)/(k_steps[num_steps-1]);
-    long t1 = Fq_steps[num_steps-1] * Fq_steps[num_steps-1];
-    long n1 = (long)pow(Fq_steps[num_steps-1], k_steps[num_steps-1] + 1);
+    int d1 = (Fq_steps[1]-1)/(k_steps[1]);
+    long t1 = Fq_steps[1] * Fq_steps[1];
+    long n1 = (long)pow(Fq_steps[1], k_steps[1] + 1);
     char filename1[100]; // buffer para a string
     snprintf(filename1, sizeof(filename1), "CFFs/%d-CFF(%ld,%ld).txt", d1, t1, n1);
 
-    write_cff_to_file(filename1, final_cff, new_total_rows, new_total_cols);
+    write_cff_to_file(filename1, params->construction, new_Fq_steps, new_fqs_count, new_k_steps, new_ks_count, final_cff, new_total_rows, new_total_cols);
 
     // 5. LIMPEZA TOTAL DA MEMÓRIA
-    printf("\nLimpando toda a memória.\n");
     free_matrix(cff_old_old, old_rows);
     free_generated_cffs(&new_blocks);
     free_matrix(final_cff, new_total_rows);
+    free(new_Fq_steps);
+    free(new_k_steps);
+    free(params->Fqs);
+    free(params->ks);
+    free(params);
 }
-
 
 generated_cffs generate_new_cff_blocks(long* Fq_steps, long* k_steps, int num_steps) {
     generated_cffs result = {0};

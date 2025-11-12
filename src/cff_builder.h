@@ -44,6 +44,7 @@ typedef struct {
 } generated_cffs;
 
 // Função pública que a main acessa 
-void embeed_cff(long* Fq_steps, long* k_steps, int num_steps);
+void embeed_cff(char construction, long* Fq_steps, long* k_steps);
+void generate_cff(char construction, long fq, long k);
 
 #endif // CFF_BUILDER_H

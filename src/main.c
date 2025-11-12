@@ -4,36 +4,55 @@
 #include <sys/stat.h>
 
 int main(int argc, char *argv[]) {
-    if (argc < 2) {
+    if (argc < 3) {
+        fprintf(stderr, "Erro: Argumentos insuficientes.\n");
         return 1;
     }
 
-    int num_steps = atoi(argv[1]);
-
-    if (argc != 2 + (2 * num_steps)) {
-        return 1;
-    }
-
-    long *Fq_steps = malloc(num_steps * sizeof(long));
-    long *k_steps = malloc(num_steps * sizeof(long));
-
-    if (Fq_steps == NULL || k_steps == NULL) {
-        return 1;
-    }
-
-    for (int i = 0; i < num_steps; i++) {
-        Fq_steps[i] = atol(argv[2 + i]);
-    }
-
-    for (int i = 0; i < num_steps; i++) {
-        k_steps[i] = atol(argv[2 + num_steps + i]);
-    }
+    char construction = argv[1][0];
+    char action = argv[2][0];
 
     mkdir("CFFs", 0777);
-    embeed_cff(Fq_steps, k_steps, num_steps);
 
-    free(Fq_steps);
-    free(k_steps);
+    if (action == 'g') {
+        if (argc != 7) {
+            fprintf(stderr, "Erro (g): Número incorreto de argumentos.\n");
+            return 1;
+        }
+
+        long* Fq_steps = malloc(2 * sizeof(long));
+        long* k_steps = malloc(2 * sizeof(long));
+        if (Fq_steps == NULL || k_steps == NULL) {
+            perror("Erro: Falha ao alocar memória");
+            free(Fq_steps); free(k_steps);
+            return 1;
+        }
+
+        Fq_steps[0] = atol(argv[3]); 
+        Fq_steps[1] = atol(argv[4]);
+        k_steps[0] = atol(argv[5]);  
+        k_steps[1] = atol(argv[6]);  
+
+        embeed_cff(construction, Fq_steps, k_steps);
+
+        free(Fq_steps);
+        free(k_steps);
+
+    } else if (action == 'f') {
+        if (argc != 5) {
+            fprintf(stderr, "Erro (f): Número incorreto de argumentos.\n");
+            return 1;
+        }
+
+        long fq = atol(argv[3]);
+        long k = atol(argv[4]);
+
+        generate_cff(construction, fq, k);
+
+    } else {
+        fprintf(stderr, "Erro: Ação '%c' desconhecida. Use 'g' ou 'f'.\n", action);
+        return 1;
+    }
 
     return 0;
 }

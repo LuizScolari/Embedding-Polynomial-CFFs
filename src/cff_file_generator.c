@@ -1,6 +1,72 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string.h>
+#include "cff_file_generator.h"
+
+int* parse_int_list(char* str, int* count);
+
+struct cff_parameters* read_parameters(const char* filename) {
+    FILE* file = fopen(filename, "r");
+    if (file == NULL) {
+        printf("Arquivo de entrada '%s' não encontrado.\n", filename);
+        return NULL;
+    }
+
+    struct cff_parameters* params = (struct cff_parameters*) malloc(sizeof(struct cff_parameters));
+    if (params == NULL) {
+        printf("Erro: Falha ao alocar memória para parâmetros.\n");
+        fclose(file);
+        return NULL;
+    }
+
+    params->Fqs = NULL;
+    params->ks = NULL;
+    params->fqs_count = 0;
+    params->ks_count = 0;
+
+    char* line = NULL;
+    size_t len = 0;
+
+    if (getline(&line, &len, file) == -1) {
+        printf("Erro: Arquivo está vazio ou não foi possível ler a linha.\n");
+        free(params);
+        fclose(file);
+        if (line) free(line);
+        return NULL;
+    }
+
+    char fqs_str[256]; 
+    char ks_str[256];
+
+    int items_scanned = sscanf(line, "%c [%[^]]] [%[^]]]", 
+                               &params->construction, fqs_str, ks_str);
+
+    if (items_scanned != 3) {
+        printf("Erro: Formato da primeira linha inválido.\n");
+        free(params);
+        fclose(file);
+        free(line);
+        return NULL;
+    }
+
+    params->Fqs = parse_int_list(fqs_str, &params->fqs_count);
+    params->ks  = parse_int_list(ks_str,  &params->ks_count);
+
+    fclose(file);
+    free(line);
+
+    if ((params->fqs_count > 0 && params->Fqs == NULL) || 
+        (params->ks_count > 0 && params->ks == NULL)) {
+        printf("Erro: Falha ao alocar memória para as listas Fqs/ks.\n");
+        free(params->Fqs); 
+        free(params->ks);
+        free(params);
+        return NULL;
+    }
+    
+    return params;
+}
 
 int** read_cff_from_file(const char* filename, long* rows, long* cols) {
     FILE* file = fopen(filename, "r");
@@ -13,6 +79,14 @@ int** read_cff_from_file(const char* filename, long* rows, long* cols) {
     *rows = 0; *cols = 0;
     char* line = NULL;
     size_t len = 0;
+
+    //Pula a primeira linha
+    if (getline(&line, &len, file) == -1) {
+        fclose(file);
+        if(line) free(line);
+        printf("Arquivo '%s' está vazio ou não tem dados após a primeira linha.\n", filename);
+        return NULL;
+    }
     
     // Primeiro passo: descobre as dimensões
     if (getline(&line, &len, file) != -1) {
@@ -29,6 +103,7 @@ int** read_cff_from_file(const char* filename, long* rows, long* cols) {
     
     // Segundo passo: lê os dados
     rewind(file);
+    getline(&line, &len, file);
     int** matrix = (int**) malloc(*rows * sizeof(int*));
     for (long i = 0; i < *rows; i++) {
         matrix[i] = (int*) malloc(*cols * sizeof(int));
@@ -39,27 +114,79 @@ int** read_cff_from_file(const char* filename, long* rows, long* cols) {
 
     fclose(file);
     if(line) free(line);
-    printf("Matriz de %ldx%ld lida do arquivo '%s'.\n", *rows, *cols, filename);
     return matrix;
 }
 
-void write_cff_to_file(const char* filename, int** matrix, long rows, long cols) {
-    FILE* file = fopen(filename, "w");
+void write_cff_to_file(const char* filename, char construction, long* Fq_steps, int fqs_count, long* K_steps, int ks_count,  int** matrix, long rows, long cols){
+    FILE* file = fopen(filename, "w"); 
     if (file == NULL) {
-        perror("Erro ao abrir arquivo para escrita");
+        printf("Erro ao abrir o arquivo '%s' para escrita.\n", filename);
         return;
     }
+
+    fprintf(file, "%c ", construction);
+
+    fprintf(file, "[");
+    for (int i = 0; i < fqs_count; i++) {
+        fprintf(file, "%ld", Fq_steps[i]);
+        if (i < fqs_count - 1) {
+            fprintf(file, ",");
+        }
+    }
+    fprintf(file, "] "); 
+
+    fprintf(file, "[");
+    for (int i = 0; i < ks_count; i++) {
+        fprintf(file, "%ld", K_steps[i]);
+        if (i < ks_count - 1) {
+            fprintf(file, ",");
+        }
+    }
+    fprintf(file, "]\n"); 
+
     for (long i = 0; i < rows; i++) {
         for (long j = 0; j < cols; j++) {
-            // Imprime o número
             fprintf(file, "%d", matrix[i][j]);
-            // Imprime um espaço apenas se NÃO for o último número da linha
             if (j < cols - 1) {
-                fprintf(file, " ");
+                fprintf(file, " "); 
             }
         }
-        fprintf(file, "\n"); // Quebra de linha ao final de cada linha da matriz
+        fprintf(file, "\n"); 
     }
+
     fclose(file);
-    printf("Nova matriz de %ldx%ld salva no arquivo '%s'.\n", rows, cols, filename);
+}
+
+// Função auxiliar para parse dos parametros
+int* parse_int_list(char* str, int* count) {
+    *count = 0;
+    
+    if (str == NULL || strlen(str) == 0) {
+        return NULL;
+    }
+
+    int commas = 0;
+    for (int i = 0; str[i] != '\0'; i++) {
+        if (str[i] == ',') {
+            commas++;
+        }
+    }
+    *count = commas + 1;
+
+    int* list = (int*) malloc(*count * sizeof(int));
+    if (list == NULL) {
+        *count = 0;
+        return NULL; 
+    }
+
+    int i = 0;
+    char* token = strtok(str, ",");
+    
+    while (token != NULL) {
+        list[i] = atoi(token);
+        i++;
+        token = strtok(NULL, ",");
+    }
+
+    return list;
 }
