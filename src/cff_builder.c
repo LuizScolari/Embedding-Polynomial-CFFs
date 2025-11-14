@@ -15,7 +15,7 @@ static fq_nmod_ctx_t global_ctx;
 static int global_ctx_initialized = 0;
 
 // --- Protótipos de Funções ---
-void get_element_by_arithmetic(fq_nmod_t result, ulong i, fq_nmod_ctx_t ctx);
+void get_element_by_arithmetic(fq_nmod_t result, ulong i, const fq_nmod_ctx_t ctx);
 void add_element_to_list(fq_nmod_t** list, long* count, long* capacity, const fq_nmod_t element, const fq_nmod_ctx_t ctx);
 void add_poly_to_list(fq_nmod_poly_t** list, long* count, long* capacity, const fq_nmod_poly_t poly, const fq_nmod_ctx_t ctx);
 subfield_partition* partition_by_subfields(const long* Fq_steps, int num_steps, const fq_nmod_ctx_t ctx);
@@ -24,10 +24,10 @@ void generate_recursive_sorted(fq_nmod_poly_t* poly_list, long* current_index, f
 int fq_nmod_poly_is_in_list(const fq_nmod_poly_t poly, const fq_nmod_poly_t* list, long list_count, const fq_nmod_ctx_t ctx);
 void add_pair_to_list(element_pair** list, long* count, long* capacity, const fq_nmod_t x, const fq_nmod_t y, const fq_nmod_ctx_t ctx);
 combination_partitions generate_combinations(const subfield_partition* partitions, int num_partitions, const fq_nmod_ctx_t ctx);
-int** generate_single_cff(long* num_rows, const element_pair* combos,  long num_combos, GHashTable* inverted_evals, long num_polys, const fq_nmod_ctx_t ctx);
+int** generate_single_cff(long* num_rows, const element_pair* combos,  long num_combos, GHashTable* inverted_evals, long num_polys);
 long find_element_index(const fq_nmod_t element, const fq_nmod_t* list, long list_count, const fq_nmod_ctx_t ctx);
 void free_matrix(int** matrix, long rows);
-generated_cffs generate_new_cff_blocks(long* Fq_steps, long* k_steps, int num_steps);
+generated_cffs generate_new_cff_blocks(char construction, long* Fq_steps, long* k_steps, int num_steps);
 static void free_generated_cffs(generated_cffs* cffs);
 void free_subfield_partitions(subfield_partition* partitions, int num_steps, const fq_nmod_ctx_t ctx);
 void free_combination_partitions(combination_partitions* combos, const fq_nmod_ctx_t ctx);
@@ -49,7 +49,7 @@ void generate_cff(char construction, long fq, long k) {
     long k_array[1] = { k };
     int num_steps = 1;
 
-    generated_cffs new_blocks = generate_new_cff_blocks(fq_array, k_array, num_steps);
+    generated_cffs new_blocks = generate_new_cff_blocks(construction, fq_array, k_array, num_steps);
 
     int** final_cff = new_blocks.cff_new;
     long final_rows = new_blocks.rows_new;
@@ -118,7 +118,7 @@ void embeed_cff(char construction, long* Fq_steps, long* k_steps){
         }
     }
 
-    generated_cffs new_blocks = generate_new_cff_blocks(new_Fq_steps, new_k_steps, new_fqs_count);
+    generated_cffs new_blocks = generate_new_cff_blocks(construction, new_Fq_steps, new_k_steps, new_fqs_count);
 
     long new_total_rows = old_rows + new_blocks.rows_new_old;
 
@@ -162,7 +162,7 @@ void embeed_cff(char construction, long* Fq_steps, long* k_steps){
     free(params);
 }
 
-generated_cffs generate_new_cff_blocks(long* Fq_steps, long* k_steps, int num_steps) {
+generated_cffs generate_new_cff_blocks(char construction, long* Fq_steps, long* k_steps, int num_steps) {
     generated_cffs result = {0};
     
     // --- ETAPA 0: PARÂMETROS E INICIALIZAÇÃO ---
@@ -307,13 +307,34 @@ generated_cffs generate_new_cff_blocks(long* Fq_steps, long* k_steps, int num_st
     }
 
     // --- ETAPA 5: GERAR MATRIZES CFF FINAIS ---
-    result.cff_old_new = generate_single_cff(&result.rows_old_new, combos.combos_old, combos.count_old, inverted_index_new, num_new_polys, ctx);
+    long num_rows = 0;
+    if(construction == 'p'){
+        num_rows = combos.count_new;
+    } else if (construction == 'm') {
+        if(num_steps == 1){
+            num_rows = Fq_steps[0] * Fq_steps[0];
+        } else {
+            num_rows = Fq_steps[num_steps-2] * (Fq_steps[num_steps-1] - Fq_steps[num_steps-2]);
+        };
+    }; 
+
+    /*
+    for (long i = 0; i < num_rows; i++) {
+        printf("Par %ld: (", i);
+        fq_nmod_print_pretty(combos.combos_new[i].x, ctx);
+        printf(", ");
+        fq_nmod_print_pretty(combos.combos_new[i].y, ctx); 
+        printf(")\n");
+    }
+    */
+
+    result.cff_old_new = generate_single_cff(&result.rows_old_new, combos.combos_old, combos.count_old, inverted_index_new, num_new_polys);
     result.cols_old_new = num_new_polys;
     
-    result.cff_new_old = generate_single_cff(&result.rows_new_old, combos.combos_new, combos.count_new, inverted_index_old, num_old_polys_total, ctx);
+    result.cff_new_old = generate_single_cff(&result.rows_new_old, combos.combos_new, num_rows, inverted_index_old, num_old_polys_total);
     result.cols_new_old = num_old_polys_total;
 
-    result.cff_new = generate_single_cff(&result.rows_new, combos.combos_new, combos.count_new, inverted_index_new, num_new_polys, ctx);
+    result.cff_new = generate_single_cff(&result.rows_new, combos.combos_new, num_rows, inverted_index_new, num_new_polys);
     result.cols_new = num_new_polys;
     
     // --- ETAPA 6: LIMPEZA ---
@@ -404,7 +425,7 @@ void add_element_to_list(fq_nmod_t** list, long* count, long* capacity, const fq
 /**
  * @brief Constrói o elemento via aritmética.
  */
-void get_element_by_arithmetic(fq_nmod_t result, ulong i, fq_nmod_ctx_t ctx) {
+void get_element_by_arithmetic(fq_nmod_t result, ulong i, const fq_nmod_ctx_t ctx) {
     fq_nmod_zero(result, ctx); 
     if (i == 0) return;
 
@@ -607,7 +628,7 @@ void add_pair_to_list(element_pair** list, long* count, long* capacity, const fq
 /**
  * @brief Gera uma matriz CFF (binária) a partir de combinações e avaliações.
  */
-int** generate_single_cff(long* num_rows, const element_pair* combos,  long num_combos, GHashTable* inverted_evals, long num_polys, const fq_nmod_ctx_t ctx) {
+int** generate_single_cff(long* num_rows, const element_pair* combos,  long num_combos, GHashTable* inverted_evals, long num_polys) {
     *num_rows = num_combos;
     if (num_combos == 0) return NULL;
 
