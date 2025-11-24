@@ -3,6 +3,7 @@
 #include <string.h> 
 #include <math.h>
 #include <glib.h>
+#include <omp.h>
 #include "flint/flint.h"
 #include "flint/fmpz.h"
 #include "flint/fq_nmod.h"
@@ -636,33 +637,26 @@ int** generate_single_cff(long* num_rows, const element_pair* combos,  long num_
     if (cff_matrix == NULL) exit(EXIT_FAILURE);
 
     // Itera por cada par (x,y)
+    #pragma omp parallel for schedule(dynamic)
     for (long i = 0; i < num_combos; i++) {
+
         const fq_nmod_t* x = &combos[i].x;
         const fq_nmod_t* y = &combos[i].y;
 
-        // Aloca a linha na nossa matriz CFF e inicializa com zeros.
-        // calloc é perfeito para isso.
         cff_matrix[i] = (int*) calloc(num_polys, sizeof(int));
-        if (cff_matrix[i] == NULL) exit(EXIT_FAILURE);
 
-        // O(1) na média para encontrar a tabela interna para 'x'
         GHashTable* inner_hash = g_hash_table_lookup(inverted_evals, x);
 
         if (inner_hash != NULL) {
-            // O(1) na média para encontrar a lista de índices para 'y'
             GArray* indices = g_hash_table_lookup(inner_hash, y);
 
             if (indices != NULL) {
-                // Agora, em vez de percorrer todos os 'num_polys',
-                // percorremos apenas a pequena lista de índices corretos.
                 for (guint k = 0; k < indices->len; k++) {
                     long j = g_array_index(indices, long, k);
                     cff_matrix[i][j] = 1;
                 }
             }
         }
-        // Se inner_hash ou indices for NULL, a linha já está corretamente preenchida com zeros
-        // graças ao calloc, então não precisamos de um 'else'.
     }
 
     return cff_matrix;
@@ -670,63 +664,51 @@ int** generate_single_cff(long* num_rows, const element_pair* combos,  long num_
 
 // Função para criar o índice invertido
 GHashTable* create_inverted_evaluation_index(long num_points, long num_polys, const fq_nmod_t* points, const fq_nmod_poly_t* polys, const fq_nmod_ctx_t ctx) {
-    
-    // Tabela externa: mapeia x -> (tabela interna)
-    // Precisamos de destrutores personalizados para as chaves e valores
-    GHashTable* inverted_index = g_hash_table_new_full(
-        fq_nmod_hash_func, 
-        fq_nmod_equal_func, 
-        g_free, // Destruidor para as chaves (que serão cópias)
-        g_hash_table_destroy_wrapper // Destruidor para os valores (as tabelas internas)
-    );
+    GHashTable* inverted_index = g_hash_table_new_full(fq_nmod_hash_func, fq_nmod_equal_func, g_free, g_hash_table_destroy_wrapper);
 
-    fq_nmod_t y_eval;
-    fq_nmod_init(y_eval, ctx);
+    omp_lock_t table_lock;
+    omp_init_lock(&table_lock);
 
-    for (long i = 0; i < num_points; i++) {
-        const fq_nmod_t* x = &points[i];
+    #pragma omp parallel
+    {
+        fq_nmod_t y_eval_local;
+        fq_nmod_init(y_eval_local, ctx);
 
-        // Tabela interna: mapeia y -> (lista de índices j)
-        GHashTable* inner_hash = g_hash_table_new_full(
-            fq_nmod_hash_func, 
-            fq_nmod_equal_func, 
-            g_free, // Chaves da tabela interna também serão cópias
-            g_array_destroy_wrapper // Valores são GArrays que precisam ser liberados
-        );
+        fq_nmod_t* x_key_copy; 
+        fq_nmod_t* y_key_copy;
 
-        for (long j = 0; j < num_polys; j++) {
-            // 1. Calcula P_j(x) = y
-            fq_nmod_poly_evaluate_fq_nmod(y_eval, polys[j], *x, ctx);
+        #pragma omp for schedule(dynamic)
+        for (long i = 0; i < num_points; i++) {
+            const fq_nmod_t* x = &points[i];
 
-            // 2. Procura pela lista de índices para este 'y'
-            GArray* indices = g_hash_table_lookup(inner_hash, y_eval);
+            GHashTable* inner_hash_local = g_hash_table_new_full(fq_nmod_hash_func, fq_nmod_equal_func, g_free, g_array_destroy_wrapper);
 
-            if (indices == NULL) {
-                // Se não existe, cria uma nova lista
-                indices = g_array_new(FALSE, FALSE, sizeof(long));
-                
-                // Cria uma cópia de 'y' para usar como chave, pois o 'y_eval' será sobrescrito
-                fq_nmod_t* y_key = (fq_nmod_t*) malloc(sizeof(fq_nmod_t));
-                fq_nmod_init(*y_key, ctx);
-                fq_nmod_set(*y_key, y_eval, ctx);
-                
-                g_hash_table_insert(inner_hash, y_key, indices);
+            for (long j = 0; j < num_polys; j++) {
+                fq_nmod_poly_evaluate_fq_nmod(y_eval_local, polys[j], *x, ctx);
+
+                GArray* indices = g_hash_table_lookup(inner_hash_local, y_eval_local);
+                if (indices == NULL) {
+                    indices = g_array_new(FALSE, FALSE, sizeof(long));
+                    y_key_copy = (fq_nmod_t*) malloc(sizeof(fq_nmod_t));
+                    fq_nmod_init(*y_key_copy, ctx);
+                    fq_nmod_set(*y_key_copy, y_eval_local, ctx);
+                    g_hash_table_insert(inner_hash_local, y_key_copy, indices);
+                }
+                g_array_append_val(indices, j);
             }
-            
-            // 3. Adiciona o índice 'j' atual à lista
-            g_array_append_val(indices, j);
+
+            x_key_copy = (fq_nmod_t*) malloc(sizeof(fq_nmod_t));
+            fq_nmod_init(*x_key_copy, ctx);
+            fq_nmod_set(*x_key_copy, *x, ctx);
+
+            omp_set_lock(&table_lock);
+            g_hash_table_insert(inverted_index, x_key_copy, inner_hash_local);
+            omp_unset_lock(&table_lock);
         }
-        
-        // Armazena a tabela interna na tabela externa
-        // Cria uma cópia de 'x' para a chave
-        fq_nmod_t* x_key = (fq_nmod_t*) malloc(sizeof(fq_nmod_t));
-        fq_nmod_init(*x_key, ctx);
-        fq_nmod_set(*x_key, *x, ctx);
-        
-        g_hash_table_insert(inverted_index, x_key, inner_hash);
+        fq_nmod_clear(y_eval_local, ctx);
     }
+    omp_destroy_lock(&table_lock);
     
-    fq_nmod_clear(y_eval, ctx);
     return inverted_index;
 }
 

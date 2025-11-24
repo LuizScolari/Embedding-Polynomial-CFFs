@@ -1,37 +1,49 @@
-# Nome do programa executável final
+# Nome do executável
 TARGET = update_cff
 
-# Compilador
+# Compilador (Apple Clang)
 CC = gcc
 
-# --- Flags da GLib obtidas via pkg-config ---
+# --- CAMINHOS DO HOMEBREW (Automático) ---
+# Detecta onde o brew está instalado (/opt/homebrew no M1/M2/M3)
+BREW_PREFIX := $(shell brew --prefix)
+
+# --- CONFIGURAÇÃO DO OPENMP PARA CLANG ---
+# O Clang precisa de -Xpreprocessor e do caminho explícito da libomp
+OMP_CFLAGS = -Xpreprocessor -fopenmp -I$(BREW_PREFIX)/opt/libomp/include
+OMP_LDFLAGS = -L$(BREW_PREFIX)/opt/libomp/lib -lomp
+
+# --- CONFIGURAÇÃO DA GLIB ---
 GLIB_CFLAGS = $(shell pkg-config --cflags glib-2.0)
 GLIB_LDFLAGS = $(shell pkg-config --libs glib-2.0)
 
-# Flags de compilação: -g (debug), -Wall (todos os avisos), -Wextra (mais avisos), -I (onde achar os headers)
-CFLAGS = -g -Wall -Wextra -I/opt/homebrew/include $(GLIB_CFLAGS)
+# --- FLAGS DE COMPILAÇÃO ---
+# Inclui headers do sistema + libomp + glib
+CFLAGS = -g -Wall -Wextra \
+         -I$(BREW_PREFIX)/include \
+         $(OMP_CFLAGS) \
+         $(GLIB_CFLAGS)
 
-# Flags de linkagem: -L (onde achar as bibliotecas), -l (quais bibliotecas linkar)
-LDFLAGS = -L/opt/homebrew/lib -lflint -lgmp -lm $(GLIB_LDFLAGS)
+# --- FLAGS DE LINKAGEM ---
+# Linka libomp + flint + gmp + math + glib
+LDFLAGS = -L$(BREW_PREFIX)/lib \
+          -lflint -lgmp -lm \
+          $(OMP_LDFLAGS) \
+          $(GLIB_LDFLAGS)
 
-# Arquivos fonte e objeto
+# Arquivos fonte
 SOURCES = main.c cff_builder.c cff_file_generator.c
 OBJECTS = $(SOURCES:.c=.o)
 
-# --- .PHONY para alvos que não são arquivos ---
 .PHONY: all clean
 
-# Regra principal: compila tudo
 all: $(TARGET)
 
-# Regra de linkagem: como criar o executável a partir dos arquivos objeto
 $(TARGET): $(OBJECTS)
 	$(CC) $(OBJECTS) -o $(TARGET) $(LDFLAGS)
 
-# Regra de compilação: como criar um arquivo .o a partir de um .c
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Regra de limpeza: remove os arquivos gerados
 clean:
 	rm -f $(OBJECTS) $(TARGET)
