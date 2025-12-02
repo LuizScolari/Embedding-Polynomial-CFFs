@@ -37,6 +37,8 @@ guint fq_nmod_hash_func(gconstpointer key);
 gboolean fq_nmod_equal_func(gconstpointer a, gconstpointer b);
 void g_array_destroy_wrapper(gpointer data);
 void g_hash_table_destroy_wrapper(gpointer data);
+static int is_prime(long n);
+static int decompose_prime_power(long q, long* p_out, long* n_out);
 
 void generate_cff(char construction, long fq, long k) {
     int d0 = (fq - 1) / k;
@@ -167,16 +169,20 @@ generated_cffs generate_new_cff_blocks(char construction, long* Fq_steps, long* 
     generated_cffs result = {0};
     
     // --- ETAPA 0: PARÂMETROS E INICIALIZAÇÃO ---
-    ulong p = Fq_steps[0];
-    long q = Fq_steps[num_steps-1]; 
-    long n = (long)round(log(q) / log(p));
+    long q_final = Fq_steps[num_steps - 1];  
+    long p, n;
+    
+    if (!decompose_prime_power(q_final, &p, &n)) {
+        fprintf(stderr, "Erro: %ld não é uma potência de primo!\n", q_final);
+        return result;
+    }
 
     fmpz_t pz;
     fmpz_init(pz);
-    fmpz_set_ui(pz, p);
+    fmpz_set_ui(pz, (ulong)p);
 
     fq_nmod_ctx_t ctx;
-    fq_nmod_ctx_init_ui(ctx, p, n, "a");
+    fq_nmod_ctx_init_ui(ctx, (ulong)p, (slong)n, "a");
     
     // --- ETAPA 1: PARTICIONAR ELEMENTOS ---
     subfield_partition* partitions = partition_by_subfields(Fq_steps, num_steps, ctx);
@@ -351,6 +357,59 @@ generated_cffs generate_new_cff_blocks(char construction, long* Fq_steps, long* 
     global_ctx_initialized = 0;
 
     return result;
+}
+
+/**
+ * @brief Verifica se um número é primo.
+ */
+static int is_prime(long n) {
+    if (n <= 1) return 0;
+    if (n <= 3) return 1;
+    if (n % 2 == 0 || n % 3 == 0) return 0;
+    for (long i = 5; i * i <= n; i += 6) {
+        if (n % i == 0 || n % (i + 2) == 0) return 0;
+    }
+    return 1;
+}
+
+/**
+ * @brief Decompõe q em p^n onde p é primo.
+ * @param q O tamanho do corpo finito (deve ser potência de primo).
+ * @param p_out Ponteiro para armazenar a característica prima.
+ * @param n_out Ponteiro para armazenar o expoente.
+ * @return 1 se sucesso, 0 se q não é potência de primo.
+ */
+static int decompose_prime_power(long q, long* p_out, long* n_out) {
+    if (q <= 1) return 0;
+    
+    // Se q é primo, então q = q^1
+    if (is_prime(q)) {
+        *p_out = q;
+        *n_out = 1;
+        return 1;
+    }
+    
+    // Tenta encontrar o menor primo p tal que q = p^n
+    for (long p = 2; p * p <= q; p++) {
+        if (!is_prime(p)) continue;
+        
+        long temp = q;
+        long n = 0;
+        
+        while (temp % p == 0) {
+            temp /= p;
+            n++;
+        }
+        
+        // Se temp == 1, então q = p^n
+        if (temp == 1 && n > 0) {
+            *p_out = p;
+            *n_out = n;
+            return 1;
+        }
+    }
+    
+    return 0; // q não é potência de primo
 }
 
 /**
