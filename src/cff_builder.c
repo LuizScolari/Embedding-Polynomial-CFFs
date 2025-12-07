@@ -25,9 +25,9 @@ void generate_recursive_sorted(fq_nmod_poly_t* poly_list, long* current_index, f
 int fq_nmod_poly_is_in_list(const fq_nmod_poly_t poly, const fq_nmod_poly_t* list, long list_count, const fq_nmod_ctx_t ctx);
 void add_pair_to_list(element_pair** list, long* count, long* capacity, const fq_nmod_t x, const fq_nmod_t y, const fq_nmod_ctx_t ctx);
 combination_partitions generate_combinations(const subfield_partition* partitions, int num_partitions, const fq_nmod_ctx_t ctx);
-int** generate_single_cff(long* num_rows, const element_pair* combos,  long num_combos, GHashTable* inverted_evals, long num_polys);
+uint64_t** generate_single_cff(long* num_rows, const element_pair* combos,  long num_combos, GHashTable* inverted_evals, long num_polys);
 long find_element_index(const fq_nmod_t element, const fq_nmod_t* list, long list_count, const fq_nmod_ctx_t ctx);
-void free_matrix(int** matrix, long rows);
+void free_matrix(uint64_t** matrix, long rows);
 generated_cffs generate_new_cff_blocks(char construction, long* Fq_steps, long* k_steps, int num_steps);
 static void free_generated_cffs(generated_cffs* cffs);
 void free_subfield_partitions(subfield_partition* partitions, int num_steps, const fq_nmod_ctx_t ctx);
@@ -54,7 +54,7 @@ void generate_cff(char construction, long fq, long k) {
 
     generated_cffs new_blocks = generate_new_cff_blocks(construction, fq_array, k_array, num_steps);
 
-    int** final_cff = new_blocks.cff_new;
+    uint64_t** final_cff = new_blocks.cff_new;
     long final_rows = new_blocks.rows_new;
     long final_cols = new_blocks.cols_new;
 
@@ -86,7 +86,7 @@ void embeed_cff(char construction, long* Fq_steps, long* k_steps){
         return;
     }
 
-    int** cff_old_old = read_cff_from_file(filename0, &old_rows, &old_cols);
+    uint64_t** cff_old_old = read_cff_from_file(filename0, &old_rows, &old_cols);
 
     int new_fqs_count = params->fqs_count + 1;
     int new_ks_count = params->ks_count + 1;
@@ -129,22 +129,47 @@ void embeed_cff(char construction, long* Fq_steps, long* k_steps){
     long width_bottom = new_blocks.cols_new_old + new_blocks.cols_new;
     long new_total_cols = (width_top > width_bottom) ? width_top : width_bottom;
     
-    int** final_cff = (int**) malloc(new_total_rows * sizeof(int*));
+    long words_per_row = WORDS_FOR_BITS(new_total_cols);
+    uint64_t** final_cff = (uint64_t**) malloc(new_total_rows * sizeof(uint64_t*));
     for (long i = 0; i < new_total_rows; i++) {
-        final_cff[i] = (int*) calloc(new_total_cols, sizeof(int));
+        final_cff[i] = (uint64_t*) calloc(words_per_row, sizeof(uint64_t));
     }
 
     // Copia bloco 1: CFF_old_old
-    for(long i=0; i < old_rows; i++) memcpy(final_cff[i], cff_old_old[i], old_cols * sizeof(int));
+    for(long i=0; i < old_rows; i++) {
+        for (long j = 0; j < old_cols; j++) {
+            if (GET_BIT(cff_old_old[i], j)) {
+                SET_BIT(final_cff[i], j);
+            }
+        }
+    }
 
     // Copia bloco 2: CFF_old_new
-    for(long i=0; i < new_blocks.rows_old_new; i++) memcpy(&final_cff[i][old_cols], new_blocks.cff_old_new[i], new_blocks.cols_old_new * sizeof(int));
+    for(long i=0; i < new_blocks.rows_old_new; i++) {
+        for (long j = 0; j < new_blocks.cols_old_new; j++) {
+            if (GET_BIT(new_blocks.cff_old_new[i], j)) {
+                SET_BIT(final_cff[i], old_cols + j);
+            }
+        }
+    }
     
     // Copia bloco 3: CFF_new_old
-    for(long i=0; i < new_blocks.rows_new_old; i++) memcpy(final_cff[old_rows + i], new_blocks.cff_new_old[i], new_blocks.cols_new_old * sizeof(int));
+    for(long i=0; i < new_blocks.rows_new_old; i++) {
+        for (long j = 0; j < new_blocks.cols_new_old; j++) {
+            if (GET_BIT(new_blocks.cff_new_old[i], j)) {
+                SET_BIT(final_cff[old_rows + i], j);
+            }
+        }
+    }
     
     // Copia bloco 4: CFF_new
-    for(long i=0; i < new_blocks.rows_new; i++) memcpy(&final_cff[old_rows + i][new_blocks.cols_new_old], new_blocks.cff_new[i], new_blocks.cols_new * sizeof(int));
+    for(long i=0; i < new_blocks.rows_new; i++) {
+        for (long j = 0; j < new_blocks.cols_new; j++) {
+            if (GET_BIT(new_blocks.cff_new[i], j)) {
+                SET_BIT(final_cff[old_rows + i], new_blocks.cols_new_old + j);
+            }
+        }
+    }
 
     int d1 = (Fq_steps[1]-1)/(k_steps[1]);
     long t1 = Fq_steps[1] * Fq_steps[1];
@@ -686,13 +711,15 @@ void add_pair_to_list(element_pair** list, long* count, long* capacity, const fq
 }
 
 /**
- * @brief Gera uma matriz CFF (binária) a partir de combinações e avaliações.
+ * @brief Gera uma matriz CFF (bitmap) a partir de combinações e avaliações.
  */
-int** generate_single_cff(long* num_rows, const element_pair* combos,  long num_combos, GHashTable* inverted_evals, long num_polys) {
+uint64_t** generate_single_cff(long* num_rows, const element_pair* combos,  long num_combos, GHashTable* inverted_evals, long num_polys) {
     *num_rows = num_combos;
     if (num_combos == 0) return NULL;
 
-    int** cff_matrix = (int**) malloc(num_combos * sizeof(int*));
+    long words_per_row = WORDS_FOR_BITS(num_polys);
+
+    uint64_t** cff_matrix = (uint64_t**) malloc(num_combos * sizeof(uint64_t*));
     if (cff_matrix == NULL) exit(EXIT_FAILURE);
 
     // Itera por cada par (x,y)
@@ -702,7 +729,7 @@ int** generate_single_cff(long* num_rows, const element_pair* combos,  long num_
         const fq_nmod_t* x = &combos[i].x;
         const fq_nmod_t* y = &combos[i].y;
 
-        cff_matrix[i] = (int*) calloc(num_polys, sizeof(int));
+        cff_matrix[i] = (uint64_t*) calloc(words_per_row, sizeof(uint64_t));
 
         GHashTable* inner_hash = g_hash_table_lookup(inverted_evals, x);
 
@@ -712,7 +739,7 @@ int** generate_single_cff(long* num_rows, const element_pair* combos,  long num_
             if (indices != NULL) {
                 for (guint k = 0; k < indices->len; k++) {
                     long j = g_array_index(indices, long, k);
-                    cff_matrix[i][j] = 1;
+                    SET_BIT(cff_matrix[i], j);
                 }
             }
         }
@@ -816,7 +843,7 @@ void free_generated_cffs(generated_cffs* cffs) {
     if (cffs->cff_new) { for (long i = 0; i < cffs->rows_new; i++) free(cffs->cff_new[i]); free(cffs->cff_new); }
 }
 
-void free_matrix(int** matrix, long rows) {
+void free_matrix(uint64_t** matrix, long rows) {
     if (!matrix) return;
     for (long i = 0; i < rows; i++) free(matrix[i]);
     free(matrix);

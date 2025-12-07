@@ -2,7 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <string.h>
+#include <stdint.h>
 #include "cff_file_generator.h"
+#include "cff_builder.h"
 
 int* parse_int_list(char* str, int* count);
 
@@ -68,7 +70,7 @@ struct cff_parameters* read_parameters(const char* filename) {
     return params;
 }
 
-int** read_cff_from_file(const char* filename, long* rows, long* cols) {
+uint64_t** read_cff_from_file(const char* filename, long* rows, long* cols) {
     FILE* file = fopen(filename, "r");
     if (file == NULL) {
         printf("Arquivo de entrada '%s' não encontrado. Começando do zero.\n", filename);
@@ -104,11 +106,17 @@ int** read_cff_from_file(const char* filename, long* rows, long* cols) {
     // Segundo passo: lê os dados
     rewind(file);
     getline(&line, &len, file);
-    int** matrix = (int**) malloc(*rows * sizeof(int*));
+    
+    long words_per_row = WORDS_FOR_BITS(*cols);
+    uint64_t** matrix = (uint64_t**) malloc(*rows * sizeof(uint64_t*));
+    
     for (long i = 0; i < *rows; i++) {
-        matrix[i] = (int*) malloc(*cols * sizeof(int));
+        matrix[i] = (uint64_t*) calloc(words_per_row, sizeof(uint64_t));
         for (long j = 0; j < *cols; j++) {
-            fscanf(file, "%d", &matrix[i][j]);
+            int bit;
+            if (fscanf(file, "%d", &bit) == 1 && bit == 1) {
+                SET_BIT(matrix[i], j);
+            }
         }
     }
 
@@ -117,7 +125,7 @@ int** read_cff_from_file(const char* filename, long* rows, long* cols) {
     return matrix;
 }
 
-void write_cff_to_file(const char* filename, char construction, long* Fq_steps, int fqs_count, long* K_steps, int ks_count,  int** matrix, long rows, long cols){
+void write_cff_to_file(const char* filename, char construction, long* Fq_steps, int fqs_count, long* K_steps, int ks_count,  uint64_t** matrix, long rows, long cols){
     FILE* file = fopen(filename, "w"); 
     if (file == NULL) {
         printf("Erro ao abrir o arquivo '%s' para escrita.\n", filename);
@@ -146,7 +154,7 @@ void write_cff_to_file(const char* filename, char construction, long* Fq_steps, 
 
     for (long i = 0; i < rows; i++) {
         for (long j = 0; j < cols; j++) {
-            fprintf(file, "%d", matrix[i][j]);
+            fprintf(file, "%d", GET_BIT(matrix[i], j) ? 1 : 0);
             if (j < cols - 1) {
                 fprintf(file, " "); 
             }

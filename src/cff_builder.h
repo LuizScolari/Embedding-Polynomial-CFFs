@@ -1,8 +1,19 @@
 #ifndef CFF_BUILDER_H
 #define CFF_BUILDER_H
 
+#include <stdint.h> 
 #include "flint/fq_nmod.h"
 #include "flint/fq_nmod_poly.h"
+
+// --- Macros para Bitmap de 64 bits ---
+#define BITS_PER_WORD 64
+#define WORD_OFFSET(b) ((b) / BITS_PER_WORD)
+#define BIT_OFFSET(b)  ((b) % BITS_PER_WORD)
+
+#define SET_BIT(row_ptr, col) ((row_ptr)[WORD_OFFSET(col)] |= (1ULL << BIT_OFFSET(col)))
+#define GET_BIT(row_ptr, col) (((row_ptr)[WORD_OFFSET(col)] >> BIT_OFFSET(col)) & 1ULL)
+
+#define WORDS_FOR_BITS(bits) (((bits) + BITS_PER_WORD - 1) / BITS_PER_WORD)
 
 // --- Estruturas de Dados Públicas ---
 typedef struct { 
@@ -30,15 +41,15 @@ typedef struct {
 
 // Estrutura para retornar os 3 novos blocos da CFF
 typedef struct {
-    int** cff_old_new;
+    uint64_t** cff_old_new;
     long rows_old_new;
     long cols_old_new;
 
-    int** cff_new_old;
+    uint64_t** cff_new_old;
     long rows_new_old;
     long cols_new_old;
     
-    int** cff_new;
+    uint64_t** cff_new;
     long rows_new;
     long cols_new;
 } generated_cffs;
