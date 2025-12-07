@@ -725,9 +725,6 @@ int** generate_single_cff(long* num_rows, const element_pair* combos,  long num_
 GHashTable* create_inverted_evaluation_index(long num_points, long num_polys, const fq_nmod_t* points, const fq_nmod_poly_t* polys, const fq_nmod_ctx_t ctx) {
     GHashTable* inverted_index = g_hash_table_new_full(fq_nmod_hash_func, fq_nmod_equal_func, g_free, g_hash_table_destroy_wrapper);
 
-    omp_lock_t table_lock;
-    omp_init_lock(&table_lock);
-
     #pragma omp parallel
     {
         fq_nmod_t y_eval_local;
@@ -760,14 +757,12 @@ GHashTable* create_inverted_evaluation_index(long num_points, long num_polys, co
             fq_nmod_init(*x_key_copy, ctx);
             fq_nmod_set(*x_key_copy, *x, ctx);
 
-            omp_set_lock(&table_lock);
+            #pragma omp critical
             g_hash_table_insert(inverted_index, x_key_copy, inner_hash_local);
-            omp_unset_lock(&table_lock);
         }
         fq_nmod_clear(y_eval_local, ctx);
     }
-    omp_destroy_lock(&table_lock);
-    
+
     return inverted_index;
 }
 
