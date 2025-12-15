@@ -22,7 +22,7 @@ In this construction, matrix rows are indexed by pairs of elements $(x, y) \in \
 
 ### Monotone Construction
 
-The **Monotone** construction is a variation that uses an additional parameter $d$ to organize elements into specific blocks ("dk-blocks"). While the standard construction focuses purely on polynomial degree and field size, the monotone construction imposes different structural constraints to ensure specific coverage properties with varying dimensions.
+The Monotone construction is a variation designed for embedding operations. During expansion, rows are indexed by pairs $(x, y)$ where $x$ is restricted to a subset $B \subseteq \mathbb{F}_q$ corresponding to the smaller base field. The parameters $d$ and $k$ are always kept constant throughout the embedding process—only the field size $q$ changes.
 
 ## 🚀 Hash Table Optimizations
 
