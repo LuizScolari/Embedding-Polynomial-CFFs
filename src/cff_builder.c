@@ -24,11 +24,11 @@ fq_nmod_poly_t* generate_polynomials_from_coeffs(long* poly_count, long max_degr
 void generate_recursive_sorted(fq_nmod_poly_t* poly_list, long* current_index, fq_nmod_poly_t current_poly, long degree, const fq_nmod_t* elements, long num_elements, const fq_nmod_ctx_t ctx);
 int fq_nmod_poly_is_in_list(const fq_nmod_poly_t poly, const fq_nmod_poly_t* list, long list_count, const fq_nmod_ctx_t ctx);
 void add_pair_to_list(element_pair** list, long* count, long* capacity, const fq_nmod_t x, const fq_nmod_t y, const fq_nmod_ctx_t ctx);
-combination_partitions generate_combinations(const subfield_partition* partitions, int num_partitions, const fq_nmod_ctx_t ctx);
+combination_partitions generate_combinations(char construction, int dk_size, const subfield_partition* partitions, int num_partitions, const fq_nmod_ctx_t ctx);
 uint64_t** generate_single_cff(long* num_rows, const element_pair* combos,  long num_combos, GHashTable* inverted_evals, long num_polys);
 long find_element_index(const fq_nmod_t element, const fq_nmod_t* list, long list_count, const fq_nmod_ctx_t ctx);
 void free_matrix(uint64_t** matrix, long rows);
-generated_cffs generate_new_cff_blocks(char construction, long* Fq_steps, long* k_steps, int num_steps);
+generated_cffs generate_new_cff_blocks(char construction, int d, long* Fq_steps, long* k_steps, int num_steps);
 static void free_generated_cffs(generated_cffs* cffs);
 void free_subfield_partitions(subfield_partition* partitions, int num_steps, const fq_nmod_ctx_t ctx);
 void free_combination_partitions(combination_partitions* combos, const fq_nmod_ctx_t ctx);
@@ -40,19 +40,29 @@ void g_hash_table_destroy_wrapper(gpointer data);
 static int is_prime(long n);
 static int decompose_prime_power(long q, long* p_out, long* n_out);
 
-void generate_cff(char construction, long fq, long k) {
-    int d0 = (fq - 1) / k;
-    long t0 = fq * fq;
-    long n0 = (long)pow(fq, k + 1);
+void generate_cff(char construction, int d, long fq, long k) {
+    long t0, n0;
+    
+    if (construction == 'm') {
+        // Para monotone: t = (d*k + 1) * q, n = q^(k+1)
+        t0 = (d * k + 1) * fq;
+        n0 = (long)pow(fq, k + 1);
+    } else {
+        // Para polynomial: d = (q-1)/k, t = q^2, n = q^(k+1)
+        d = (fq - 1) / k;
+        t0 = fq * fq;
+        n0 = (long)pow(fq, k + 1);
+    }
+    
     char filename0[100];
-    snprintf(filename0, sizeof(filename0), "CFFs/%d-CFF(%ld,%ld).txt", d0, t0, n0);
+    snprintf(filename0, sizeof(filename0), "CFFs/%d-CFF(%ld,%ld).txt", d, t0, n0);
     printf("Gerando CFF inicial em '%s'...\n", filename0);
 
     long fq_array[1] = { fq };
     long k_array[1] = { k };
     int num_steps = 1;
 
-    generated_cffs new_blocks = generate_new_cff_blocks(construction, fq_array, k_array, num_steps);
+    generated_cffs new_blocks = generate_new_cff_blocks(construction, d, fq_array, k_array, num_steps);
 
     uint64_t** final_cff = new_blocks.cff_new;
     long final_rows = new_blocks.rows_new;
@@ -64,7 +74,7 @@ void generate_cff(char construction, long fq, long k) {
     }
     printf("Matriz CFF inicial de %ldx%ld gerada.\n", final_rows, final_cols);
 
-    write_cff_to_file(filename0, construction, fq_array, 1, k_array, 1, final_cff, final_rows, final_cols);
+    write_cff_to_file(filename0, construction, d, fq_array, 1, k_array, 1, final_cff, final_rows, final_cols);
 
     new_blocks.cff_old_new = NULL;
     new_blocks.cff_new_old = NULL;
@@ -72,11 +82,21 @@ void generate_cff(char construction, long fq, long k) {
     free_generated_cffs(&new_blocks); 
 }
 
-void embeed_cff(char construction, long* Fq_steps, long* k_steps){
-    int d0 = (Fq_steps[0]-1)/(k_steps[0]);
-    long t0 = Fq_steps[0] * Fq_steps[0];
-    long n0 = (long)pow(Fq_steps[0], k_steps[0] + 1);
-    char filename0[100]; // buffer para a string
+void embeed_cff(char construction, int d, long* Fq_steps, long* k_steps){
+    int d0;
+    long t0, n0;
+    
+    if (construction == 'm') {
+        d0 = d;
+        t0 = (d * k_steps[0] + 1) * Fq_steps[0];
+        n0 = (long)pow(Fq_steps[0], k_steps[0] + 1);
+    } else {
+        d0 = (Fq_steps[0]-1)/(k_steps[0]);
+        t0 = Fq_steps[0] * Fq_steps[0];
+        n0 = (long)pow(Fq_steps[0], k_steps[0] + 1);
+    }
+    
+    char filename0[100]; 
     snprintf(filename0, sizeof(filename0), "CFFs/%d-CFF(%ld,%ld).txt", d0, t0, n0);
 
     long old_rows = 0, old_cols = 0;
@@ -121,7 +141,7 @@ void embeed_cff(char construction, long* Fq_steps, long* k_steps){
         }
     }
 
-    generated_cffs new_blocks = generate_new_cff_blocks(construction, new_Fq_steps, new_k_steps, new_fqs_count);
+    generated_cffs new_blocks = generate_new_cff_blocks(construction, d, new_Fq_steps, new_k_steps, new_fqs_count);
 
     long new_total_rows = old_rows + new_blocks.rows_new_old;
 
@@ -171,15 +191,24 @@ void embeed_cff(char construction, long* Fq_steps, long* k_steps){
         }
     }
 
-    int d1 = (Fq_steps[1]-1)/(k_steps[1]);
-    long t1 = Fq_steps[1] * Fq_steps[1];
-    long n1 = (long)pow(Fq_steps[1], k_steps[1] + 1);
-    char filename1[100]; // buffer para a string
+    int d1;
+    long t1, n1;
+    
+    if (construction == 'm') {
+        d1 = d;
+        t1 = (d * k_steps[0] + 1) * Fq_steps[1];
+        n1 = (long)pow(Fq_steps[1], k_steps[0] + 1);
+    } else {
+        d1 = (Fq_steps[1]-1)/(k_steps[1]);
+        t1 = Fq_steps[1] * Fq_steps[1];
+        n1 = (long)pow(Fq_steps[1], k_steps[1] + 1);
+    }
+    
+    char filename1[100]; 
     snprintf(filename1, sizeof(filename1), "CFFs/%d-CFF(%ld,%ld).txt", d1, t1, n1);
 
-    write_cff_to_file(filename1, params->construction, new_Fq_steps, new_fqs_count, new_k_steps, new_ks_count, final_cff, new_total_rows, new_total_cols);
+    write_cff_to_file(filename1, construction, d1, new_Fq_steps, new_fqs_count, new_k_steps, new_ks_count, final_cff, new_total_rows, new_total_cols);
 
-    // 5. LIMPEZA TOTAL DA MEMÓRIA
     free_matrix(cff_old_old, old_rows);
     free_generated_cffs(&new_blocks);
     free_matrix(final_cff, new_total_rows);
@@ -190,7 +219,7 @@ void embeed_cff(char construction, long* Fq_steps, long* k_steps){
     free(params);
 }
 
-generated_cffs generate_new_cff_blocks(char construction, long* Fq_steps, long* k_steps, int num_steps) {
+generated_cffs generate_new_cff_blocks(char construction, int d, long* Fq_steps, long* k_steps, int num_steps) {
     generated_cffs result = {0};
     
     // --- ETAPA 0: PARÂMETROS E INICIALIZAÇÃO ---
@@ -301,8 +330,22 @@ generated_cffs generate_new_cff_blocks(char construction, long* Fq_steps, long* 
     printf("%ld\n", num_new_polys);
     */
 
+   long num_new_rows = 0;
+    int dk_size = 0;
+    if(construction == 'p'){
+        if (num_steps == 1) {
+            num_new_rows = (int)pow(Fq_steps[0], 2);
+        } else {
+            num_new_rows = (int)pow(Fq_steps[num_steps-1],2) - (int)pow(Fq_steps[num_steps-2],2);
+        }
+        dk_size = Fq_steps[num_steps-1];
+    } else if (construction == 'm') {
+        num_new_rows = (d*k_steps[0]+1)*Fq_steps[num_steps-1] - (d*k_steps[num_steps-2]+1)*Fq_steps[num_steps-2];
+        dk_size = d*k_steps[0]+1;
+    }; 
+
     // --- ETAPA 3: GERAR COMBINAÇÕES DE ELEMENTOS ---
-    combination_partitions combos = generate_combinations(partitions, num_steps, ctx);
+    combination_partitions combos = generate_combinations(construction, dk_size, partitions, num_steps, ctx);
 
     /*
     printf("--- Combos Old (Total: %ld) ---\n", combos.count_old);
@@ -339,34 +382,29 @@ generated_cffs generate_new_cff_blocks(char construction, long* Fq_steps, long* 
     }
 
     // --- ETAPA 5: GERAR MATRIZES CFF FINAIS ---
-    long num_rows = 0;
-    if(construction == 'p'){
-        num_rows = combos.count_new;
-    } else if (construction == 'm') {
-        if(num_steps == 1){
-            num_rows = Fq_steps[0] * Fq_steps[0];
-        } else {
-            num_rows = Fq_steps[num_steps-2] * (Fq_steps[num_steps-1] - Fq_steps[num_steps-2]);
-        };
-    }; 
-
-    /*
-    for (long i = 0; i < num_rows; i++) {
+    for (long i = 0; i < combos.count_old; i++) {
+        printf("Par %ld: (", i);
+        fq_nmod_print_pretty(combos.combos_old[i].x, ctx);
+        printf(", ");
+        fq_nmod_print_pretty(combos.combos_old[i].y, ctx); 
+        printf(")\n");
+    }
+    for (long i = 0; i < combos.count_new; i++) {
         printf("Par %ld: (", i);
         fq_nmod_print_pretty(combos.combos_new[i].x, ctx);
         printf(", ");
         fq_nmod_print_pretty(combos.combos_new[i].y, ctx); 
         printf(")\n");
     }
-    */
+    
 
     result.cff_old_new = generate_single_cff(&result.rows_old_new, combos.combos_old, combos.count_old, inverted_index_new, num_new_polys);
     result.cols_old_new = num_new_polys;
     
-    result.cff_new_old = generate_single_cff(&result.rows_new_old, combos.combos_new, num_rows, inverted_index_old, num_old_polys_total);
+    result.cff_new_old = generate_single_cff(&result.rows_new_old, combos.combos_new, num_new_rows, inverted_index_old, num_old_polys_total);
     result.cols_new_old = num_old_polys_total;
 
-    result.cff_new = generate_single_cff(&result.rows_new, combos.combos_new, num_rows, inverted_index_new, num_new_polys);
+    result.cff_new = generate_single_cff(&result.rows_new, combos.combos_new, num_new_rows, inverted_index_new, num_new_polys);
     result.cols_new = num_new_polys;
     
     // --- ETAPA 6: LIMPEZA ---
@@ -632,12 +670,24 @@ void add_poly_to_list(fq_nmod_poly_t** list, long* count, long* capacity, const 
 /**
  * @brief Gera listas de pares 'old' e 'new' com base nas partições de subcorpos.
  */
-combination_partitions generate_combinations(const subfield_partition* partitions, int num_partitions, const fq_nmod_ctx_t ctx) {
-    combination_partitions result = {0}; // Inicializa tudo com NULL/0
+combination_partitions generate_combinations(char construction, int dk_size, const subfield_partition* partitions, int num_partitions, const fq_nmod_ctx_t ctx) {
+    combination_partitions result = {0};
 
     fq_nmod_t* all_accumulated_elements = NULL;
     long accumulated_count = 0;
     long accumulated_capacity = 0;
+    fq_nmod_t* dk_block_elements = NULL; 
+
+    if(construction == 'm'){
+        dk_block_elements = malloc(dk_size * sizeof(fq_nmod_t));
+        int start_index = 0; 
+        
+        fq_nmod_t* current_only_elements = partitions[0].only_elements;
+        for(int i=0; i<dk_size; i++){
+            fq_nmod_init(dk_block_elements[i], ctx);
+            fq_nmod_set(dk_block_elements[i], current_only_elements[start_index + i], ctx);
+        }
+    }
 
     for (int i = 0; i < num_partitions; i++) {
         fq_nmod_t* current_only_elements = partitions[i].only_elements;
@@ -656,27 +706,29 @@ combination_partitions generate_combinations(const subfield_partition* partition
                 }
             }
         } else {
-            // Casos intermediário e final: pares entre o acumulado e o novo
-            // Pares (acumulado, novo)
-            for (long ix = 0; ix < accumulated_count; ix++) {
-                for (long iy = 0; iy < current_only_count; iy++) {
-                    add_pair_to_list(target_list, target_count, target_capacity, all_accumulated_elements[ix], current_only_elements[iy], ctx);
+            if(construction == 'p'){
+                for (long ix = 0; ix < accumulated_count; ix++) {
+                    for (long iy = 0; iy < current_only_count; iy++) {
+                        add_pair_to_list(target_list, target_count, target_capacity, all_accumulated_elements[ix], current_only_elements[iy], ctx);
+                    }
                 }
-            }
-            // Pares (novo, acumulado) - ATENÇÃO: o acumulado precisa ser o já estendido
-            // Primeiro, estendemos a lista acumulada
-            for (long j = 0; j < current_only_count; j++) {
-                add_element_to_list(&all_accumulated_elements, &accumulated_count, &accumulated_capacity, current_only_elements[j], ctx);
-            }
-            // Agora, fazemos os pares com a lista estendida
-            for (long ix = 0; ix < current_only_count; ix++) {
-                for (long iy = 0; iy < accumulated_count; iy++) {
-                     add_pair_to_list(target_list, target_count, target_capacity, current_only_elements[ix], all_accumulated_elements[iy], ctx);
+                for (long j = 0; j < current_only_count; j++) {
+                    add_element_to_list(&all_accumulated_elements, &accumulated_count, &accumulated_capacity, current_only_elements[j], ctx);
+                }
+                for (long ix = 0; ix < current_only_count; ix++) {
+                    for (long iy = 0; iy < accumulated_count; iy++) {
+                        add_pair_to_list(target_list, target_count, target_capacity, current_only_elements[ix], all_accumulated_elements[iy], ctx);
+                    }
+                } 
+            } else if (construction == 'm'){
+                for (long ix = 0; ix < dk_size; ix++) {
+                    for (long iy = 0; iy < current_only_count; iy++) {
+                        add_pair_to_list(target_list, target_count, target_capacity, dk_block_elements[ix], current_only_elements[iy], ctx);
+                    }
                 }
             }
         }
         
-        // Se for o caso base, a lista acumulada ainda não foi preenchida
         if (i == 0) {
              for (long j = 0; j < current_only_count; j++) {
                 add_element_to_list(&all_accumulated_elements, &accumulated_count, &accumulated_capacity, current_only_elements[j], ctx);

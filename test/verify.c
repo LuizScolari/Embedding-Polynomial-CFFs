@@ -3,9 +3,9 @@
 #include <string.h>
 #include <stdbool.h>
 
-#define MAX_ROWS 256
-#define MAX_COLS 256
-#define MAX_LINE_LENGTH 513
+#define MAX_ROWS 10000
+#define MAX_COLS 10000
+#define MAX_LINE_LENGTH 10000
 
 typedef struct {
     int *indices;

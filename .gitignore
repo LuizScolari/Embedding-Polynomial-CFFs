@@ -1,0 +1,22 @@
+# Build artifacts
+build/
+*.o
+generate_cff
+prog
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+
+
+
+

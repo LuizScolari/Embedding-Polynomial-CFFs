@@ -26,6 +26,7 @@ struct cff_parameters* read_parameters(const char* filename) {
     params->ks = NULL;
     params->fqs_count = 0;
     params->ks_count = 0;
+    params->d = 0;
 
     char* line = NULL;
     size_t len = 0;
@@ -40,16 +41,38 @@ struct cff_parameters* read_parameters(const char* filename) {
 
     char fqs_str[256]; 
     char ks_str[256];
+    int items_scanned;
 
-    int items_scanned = sscanf(line, "%c [%[^]]] [%[^]]]", 
-                               &params->construction, fqs_str, ks_str);
-
-    if (items_scanned != 3) {
-        printf("Erro: Formato da primeira linha inválido.\n");
+    // Primeiro lê o caractere de construção
+    if (sscanf(line, "%c", &params->construction) != 1) {
+        printf("Erro: Não foi possível ler o tipo de construção.\n");
         free(params);
         fclose(file);
         free(line);
         return NULL;
+    }
+
+    // Formato diferente para construção 'm' (inclui d)
+    if (params->construction == 'm') {
+        items_scanned = sscanf(line, "%c %d [%[^]]] [%[^]]]", 
+                               &params->construction, &params->d, fqs_str, ks_str);
+        if (items_scanned != 4) {
+            printf("Erro: Formato da primeira linha inválido para construção 'm'.\n");
+            free(params);
+            fclose(file);
+            free(line);
+            return NULL;
+        }
+    } else {
+        items_scanned = sscanf(line, "%c [%[^]]] [%[^]]]", 
+                               &params->construction, fqs_str, ks_str);
+        if (items_scanned != 3) {
+            printf("Erro: Formato da primeira linha inválido.\n");
+            free(params);
+            fclose(file);
+            free(line);
+            return NULL;
+        }
     }
 
     params->Fqs = parse_int_list(fqs_str, &params->fqs_count);
@@ -125,7 +148,7 @@ uint64_t** read_cff_from_file(const char* filename, long* rows, long* cols) {
     return matrix;
 }
 
-void write_cff_to_file(const char* filename, char construction, long* Fq_steps, int fqs_count, long* K_steps, int ks_count,  uint64_t** matrix, long rows, long cols){
+void write_cff_to_file(const char* filename, char construction, int d, long* Fq_steps, int fqs_count, long* K_steps, int ks_count,  uint64_t** matrix, long rows, long cols){
     FILE* file = fopen(filename, "w"); 
     if (file == NULL) {
         printf("Erro ao abrir o arquivo '%s' para escrita.\n", filename);
@@ -133,6 +156,11 @@ void write_cff_to_file(const char* filename, char construction, long* Fq_steps, 
     }
 
     fprintf(file, "%c ", construction);
+    
+    // Para construção monotone, salva o parâmetro d
+    if (construction == 'm') {
+        fprintf(file, "%d ", d);
+    }
 
     fprintf(file, "[");
     for (int i = 0; i < fqs_count; i++) {

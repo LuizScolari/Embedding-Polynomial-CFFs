@@ -1,66 +1,66 @@
-def verificar_matriz_soma_uniforme(caminho_arquivo, soma_esperada_linha, soma_esperada_coluna):
+def verify_uniform_sum_matrix(file_path, expected_row_sum, expected_col_sum):
     """
-    Lê uma matriz binária de um arquivo e verifica se a soma de 1s em cada linha e
-    coluna corresponde a um valor único esperado para todas as linhas e colunas.
+    Reads a binary matrix from a file and verifies if the sum of 1s in each row and
+    column matches a single expected value for all rows and columns.
 
     Args:
-        caminho_arquivo (str): O caminho para o arquivo .txt contendo a matriz.
-        soma_esperada_linha (int): O valor de soma esperado para TODAS as linhas.
-        soma_esperada_coluna (int): O valor de soma esperado para TODAS as colunas.
+        file_path (str): Path to the .txt file containing the matrix.
+        expected_row_sum (int): Expected sum value for ALL rows.
+        expected_col_sum (int): Expected sum value for ALL columns.
     """
-    matriz = []
-    # Lê o arquivo e constrói a matriz
+    matrix = []
+    # Read file and build matrix
     try:
-        with open(caminho_arquivo, 'r') as f:
-            for linha in f:
-                # Converte cada elemento da linha para int e adiciona à matriz
-                matriz.append([int(x) for x in linha.strip().split()])
+        with open(file_path, 'r') as f:
+            for line in f:
+                # Convert each element in the line to int and add to matrix
+                matrix.append([int(x) for x in line.strip().split()])
     except FileNotFoundError:
-        print(f"Erro: O arquivo '{caminho_arquivo}' não foi encontrado.")
+        print(f"Error: File '{file_path}' not found.")
         return
     except ValueError:
-        print("Erro: O arquivo contém caracteres que não são números inteiros.")
+        print("Error: File contains non-integer characters.")
         return
 
-    if not matriz:
-        print("A matriz está vazia.")
+    if not matrix:
+        print("Matrix is empty.")
         return
 
-    num_linhas = len(matriz)
-    # Assume que todas as linhas têm o mesmo número de colunas
-    num_colunas = len(matriz[0])
+    num_rows = len(matrix)
+    # Assume all rows have the same number of columns
+    num_cols = len(matrix[0])
 
-    print("--- Verificando Linhas ---")
+    print("--- Checking Rows ---")
     check = True
-    # Itera sobre cada linha para verificar a soma
-    for i, linha in enumerate(matriz):
-        soma_linha_atual = sum(linha)
-        if soma_linha_atual != soma_esperada_linha:
-            print(f"Linha {i}: Esperado: {soma_esperada_linha}, Encontrado: {soma_linha_atual}")
+    # Iterate over each row to check the sum
+    for i, row in enumerate(matrix):
+        current_row_sum = sum(row)
+        if current_row_sum != expected_row_sum:
+            print(f"Row {i}: Expected: {expected_row_sum}, Found: {current_row_sum}")
             check = False
     if check == True:
-        print("Válido!")
+        print("Valid!")
             
     check = True
-    print("\n--- Verificando Colunas ---")
-    # Itera sobre cada coluna para verificar a soma
-    for j in range(num_colunas):
-        soma_coluna_atual = sum(matriz[i][j] for i in range(num_linhas))
-        if soma_coluna_atual != soma_esperada_coluna:
-            print(f"Coluna {j}: Esperado: {soma_esperada_coluna}, Encontrado: {soma_coluna_atual}")
+    print("\n--- Checking Columns ---")
+    # Iterate over each column to check the sum
+    for j in range(num_cols):
+        current_col_sum = sum(matrix[i][j] for i in range(num_rows))
+        if current_col_sum != expected_col_sum:
+            print(f"Column {j}: Expected: {expected_col_sum}, Found: {current_col_sum}")
             check = False
     if check == True:
-        print("Válido!")
+        print("Valid!")
 
 
-caminho_do_arquivo = 'saida.txt'
-soma_esperada_para_cada_linha = 4
-soma_esperada_para_cada_coluna = 2
+file_path = 'saida.txt'
+expected_row_sum = 16
+expected_col_sum = 16
 
-print(f"Verificando a matriz com soma esperada de '{soma_esperada_para_cada_linha}' para as linhas e '{soma_esperada_para_cada_coluna}' para as colunas.\n")
+print(f"Verifying matrix with expected sum of '{expected_row_sum}' for rows and '{expected_col_sum}' for columns.\n")
 
-verificar_matriz_soma_uniforme(
-    caminho_do_arquivo,
-    soma_esperada_para_cada_linha,
-    soma_esperada_para_cada_coluna
+verify_uniform_sum_matrix(
+    file_path,
+    expected_row_sum,
+    expected_col_sum
 )
