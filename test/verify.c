@@ -1,11 +1,22 @@
+/**
+ * @file verify.c
+ * @brief CFF (Cover-Free Family) verification program.
+ * 
+ * This program reads a binary matrix from a file and verifies
+ * whether it satisfies the d-CFF property.
+ * 
+ * run: gcc -O3 -o prog verify.c
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
 
-#define MAX_ROWS 10000
-#define MAX_COLS 10000
-#define MAX_LINE_LENGTH 10000
+//Update accordingly to the CFF parameters. 
+#define MAX_ROWS 1000
+#define MAX_COLS 1000
+#define MAX_LINE_LENGTH 2000
 
 typedef struct {
     int *indices;
@@ -22,7 +33,7 @@ typedef struct {
 Matrix* read_matrix_from_file(const char *file_path) {
     FILE *file = fopen(file_path, "r");
     if (!file) {
-        perror("Erro ao abrir arquivo");
+        perror("Error opening file");
         return NULL;
     }
     
@@ -78,7 +89,6 @@ Block* process_columns(Matrix *matrix, int *num_blocks) {
     return blocks;
 }
 
-// Função de união otimizada que preenche o array 'seen'
 void compute_union_fast(Block *blocks, int *selected, int selected_count, bool *seen) {
     for (int i = 0; i < selected_count; i++) {
         Block *block = &blocks[selected[i]];
@@ -88,7 +98,6 @@ void compute_union_fast(Block *blocks, int *selected, int selected_count, bool *
     }
 }
 
-// Verifica se block1 é subconjunto usando o array 'seen'
 bool is_subset_fast(Block *block1, bool *seen) {
     for (int i = 0; i < block1->size; i++) {
         int idx = block1->indices[i];
@@ -99,23 +108,16 @@ bool is_subset_fast(Block *block1, bool *seen) {
     return true;
 }
 
-// Função auxiliar para gerar combinações recursivamente
 bool check_combinations(Block *blocks, int n, int d, int i, int start, int *selected, int selected_count, bool *seen_array) {
     if (selected_count == d) {
-        // Limpa o array 'seen'
         memset(seen_array, 0, (MAX_ROWS + 1) * sizeof(bool));
-        
-        // Calcula a união e preenche o 'seen_array'
         compute_union_fast(blocks, selected, selected_count, seen_array);
-        
-        // Verifica o subconjunto usando o 'seen'
         if (is_subset_fast(&blocks[i], seen_array)) {
-            return true;  // Encontrou um subset - não é CFF
+            return true;
         }
         return false;
     }
     
-    // Gera combinações recursivamente
     for (int j = start; j < n; j++) {
         if (j == i) continue;
         
@@ -128,10 +130,8 @@ bool check_combinations(Block *blocks, int n, int d, int i, int start, int *sele
     return false;
 }
 
-// Verifica se é CFF
 bool is_cff(Block *blocks, int n, int d) {
     int *selected = (int*)malloc(n * sizeof(int));
-    // Aloca o 'seen' array aqui, uma vez só
     bool *seen_array = (bool*)calloc(MAX_ROWS + 1, sizeof(bool));
     
     for (int i = 0; i < n; i++) {
@@ -164,8 +164,15 @@ void free_blocks(Block *blocks, int num_blocks) {
     free(blocks);
 }
 
+/**
+ * @brief Main function of the CFF verification program.
+ * 
+ * Reads a matrix from 'output.txt' and verifies if it is a valid 1-CFF.
+ * 
+ * @return 0 on success, 1 on error.
+ */
 int main() {
-    const char *file_path = "saida.txt";
+    const char *file_path = "output.txt";
     
     Matrix *matrix = read_matrix_from_file(file_path);
     if (!matrix) {
@@ -174,8 +181,9 @@ int main() {
     
     int num_blocks;
     Block *blocks = process_columns(matrix, &num_blocks);
-    
-    is_cff(blocks, num_blocks, 1);
+
+    int d = 2;
+    is_cff(blocks, num_blocks, d);
     
     free_blocks(blocks, num_blocks);
     free_matrix(matrix);

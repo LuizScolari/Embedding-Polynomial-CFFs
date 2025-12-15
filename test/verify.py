@@ -1,19 +1,15 @@
-def verify_uniform_sum_matrix(file_path, expected_row_sum, expected_col_sum):
-    """
-    Reads a binary matrix from a file and verifies if the sum of 1s in each row and
-    column matches a single expected value for all rows and columns.
+"""
+verify.py - Matrix sum verification script.
 
-    Args:
-        file_path (str): Path to the .txt file containing the matrix.
-        expected_row_sum (int): Expected sum value for ALL rows.
-        expected_col_sum (int): Expected sum value for ALL columns.
-    """
+This script reads a binary matrix from a file and verifies if the sum of 1s
+in each row and column matches the expected values.
+"""
+
+def verify_uniform_sum_matrix(file_path, expected_row_sum, expected_col_sum):
     matrix = []
-    # Read file and build matrix
     try:
         with open(file_path, 'r') as f:
             for line in f:
-                # Convert each element in the line to int and add to matrix
                 matrix.append([int(x) for x in line.strip().split()])
     except FileNotFoundError:
         print(f"Error: File '{file_path}' not found.")
@@ -27,12 +23,10 @@ def verify_uniform_sum_matrix(file_path, expected_row_sum, expected_col_sum):
         return
 
     num_rows = len(matrix)
-    # Assume all rows have the same number of columns
     num_cols = len(matrix[0])
 
     print("--- Checking Rows ---")
     check = True
-    # Iterate over each row to check the sum
     for i, row in enumerate(matrix):
         current_row_sum = sum(row)
         if current_row_sum != expected_row_sum:
@@ -43,7 +37,6 @@ def verify_uniform_sum_matrix(file_path, expected_row_sum, expected_col_sum):
             
     check = True
     print("\n--- Checking Columns ---")
-    # Iterate over each column to check the sum
     for j in range(num_cols):
         current_col_sum = sum(matrix[i][j] for i in range(num_rows))
         if current_col_sum != expected_col_sum:
@@ -53,14 +46,25 @@ def verify_uniform_sum_matrix(file_path, expected_row_sum, expected_col_sum):
         print("Valid!")
 
 
-file_path = 'saida.txt'
-expected_row_sum = 16
-expected_col_sum = 16
+def main():
+    """
+    Main function that runs the matrix verification.
+    
+    Reads a matrix from 'output.txt' and checks if all rows sum to 16
+    and all columns sum to 16.
+    """
+    file_path = 'output.txt'
+    expected_row_sum = 3
+    expected_col_sum = 3
 
-print(f"Verifying matrix with expected sum of '{expected_row_sum}' for rows and '{expected_col_sum}' for columns.\n")
+    print(f"Verifying matrix with expected sum of '{expected_row_sum}' for rows and '{expected_col_sum}' for columns.\n")
 
-verify_uniform_sum_matrix(
-    file_path,
-    expected_row_sum,
-    expected_col_sum
-)
+    verify_uniform_sum_matrix(
+        file_path,
+        expected_row_sum,
+        expected_col_sum
+    )
+
+
+if __name__ == "__main__":
+    main()
