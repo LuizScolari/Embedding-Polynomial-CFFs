@@ -1,11 +1,33 @@
+/**
+ * @file main.c
+ * @brief Entry point for Cover-Free Families (CFFs) generation.
+ * 
+ * This program allows generating initial CFFs or expanding existing CFFs
+ * using polynomial or monotone constructions over finite fields.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include "cff_builder.h"
 #include <sys/stat.h>
 
+/**
+ * @brief Main function of the program.
+ * 
+ * Processes command line arguments to generate or expand CFFs.
+ * 
+ * Usage:
+ *   - Polynomial embedding: ./generate_cff p g <q0> <q1> <k0> <k1>
+ *   - Polynomial from scratch: ./generate_cff p f <q> <k>
+ *   - Monotone embedding: ./generate_cff m g <d> <q0> <q1> <k0> <k1>
+ * 
+ * @param argc Number of arguments.
+ * @param argv Array of arguments.
+ * @return 0 on success, 1 on error.
+ */
 int main(int argc, char *argv[]) {
     if (argc < 3) {
-        fprintf(stderr, "Erro: Argumentos insuficientes.\n");
+        fprintf(stderr, "Error: Insufficient arguments.\n");
         return 1;
     }
 
@@ -17,14 +39,14 @@ int main(int argc, char *argv[]) {
     if (action == 'g') {
         if (construction == 'p') {
             if (argc != 7) {
-                fprintf(stderr, "Erro (p g): Número incorreto de argumentos.\n");
+                fprintf(stderr, "Error (p g): Incorrect number of arguments.\n");
                 return 1;
             }
         }
 
         if (construction == 'm') {
             if (argc != 8) {
-                fprintf(stderr, "Erro (m g): Número incorreto de argumentos.\n");
+                fprintf(stderr, "Error (m g): Incorrect number of arguments.\n");
                 return 1;
             }
         }
@@ -32,7 +54,7 @@ int main(int argc, char *argv[]) {
         long* Fq_steps = malloc(2 * sizeof(long));
         long* k_steps = malloc(2 * sizeof(long));
         if (Fq_steps == NULL || k_steps == NULL) {
-            perror("Erro: Falha ao alocar memória");
+            perror("Error: Failed to allocate memory");
             free(Fq_steps); free(k_steps);
             return 1;
         }
@@ -58,13 +80,13 @@ int main(int argc, char *argv[]) {
 
     } else if (action == 'f') {
         if (construction != 'p') {
-            fprintf(stderr, "Erro: Ação 'f' só está disponível para construção polynomial ('p').\n");
-            fprintf(stderr, "Para construção monotone ('m'), use apenas a ação 'g' (embedding).\n");
+            fprintf(stderr, "Error: Action 'f' is only available for polynomial construction ('p').\n");
+            fprintf(stderr, "For monotone construction ('m'), use only action 'g' (embedding).\n");
             return 1;
         }
         
         if (argc != 5) {
-            fprintf(stderr, "Erro (p f): Número incorreto de argumentos. Uso: ./generate_cff p f <q> <k>\n");
+            fprintf(stderr, "Error (p f): Incorrect number of arguments. Usage: ./generate_cff p f <q> <k>\n");
             return 1;
         }
         
@@ -74,7 +96,7 @@ int main(int argc, char *argv[]) {
         generate_cff(construction, 0, fq, k);
 
     } else {
-        fprintf(stderr, "Erro: Ação '%c' desconhecida. Use 'g' ou 'f'.\n", action);
+        fprintf(stderr, "Error: Unknown action '%c'. Use 'g' or 'f'.\n", action);
         return 1;
     }
 
