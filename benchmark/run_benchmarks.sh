@@ -1,194 +1,179 @@
-# CFF Builder - Automated Benchmark System
+#!/bin/bash
+#
+# run_benchmarks.sh - Script to run CFF Builder benchmarks
+#
+# Usage:
+#   ./run_benchmarks.sh              - Run all predefined benchmarks
+#   ./run_benchmarks.sh custom       - Run custom benchmarks (edit CUSTOM_TESTS)
+#   ./run_benchmarks.sh single <args> - Run a single benchmark with specific arguments
+#
+# Examples:
+#   ./run_benchmarks.sh single p f 2 1
+#   ./run_benchmarks.sh single p g 2 4 1 1
+#   ./run_benchmarks.sh single m g 1 2 4 1 1
 
-## Description
+# Configuration
+EXECUTABLE="./generate_cff_benchmark"
+OUTPUT_FILE="benchmark_results.txt"
 
-This benchmark system automatically measures the execution time of CFF Builder with two metrics:
+# PREDEFINED TESTS - Edit this section to add/remove tests
 
-- **Time 1**: Total time for inverted index + CFF generation (+ concatenation for embedding)
-- **Time 2**: Time for CFF matrix generation + concatenation only
+# Format: "type arguments"
+# Examples:
+#   "p f 2 1"           -> ./generate_cff benchmark p f 2 1
+#   "p g 2 4 1 1"       -> ./generate_cff benchmark p g 2 4 1 1
+#   "m g 1 2 4 1 1"     -> ./generate_cff benchmark m g 1 2 4 1 1
 
-Each test is executed **100 times** and the final result is the **average** of the times.
-
-## Compilation
-
-```bash
-make
-```
-
-## Usage
-
-### Automatic Benchmark Mode (all predefined tests)
-
-```bash
-./generate_cff_benchmark benchmark
-```
-
-This automatically executes:
-1. `./generate_cff p f 2 1` (100 times, calculates times, saves last CFF)
-2. `./generate_cff p g 2 4 1 1` (100 times, calculates times, saves last CFF)
-
-### Individual Benchmark
-
-```bash
-# Polynomial from scratch
-./generate_cff_benchmark benchmark p f <q> <k>
-
-# Polynomial embedding
-./generate_cff_benchmark benchmark p g <q0> <q1> <k0> <k1>
-
-# Monotone embedding
-./generate_cff_benchmark benchmark m g <d> <q0> <q1> <k0> <k1>
-```
-
-**Examples:**
-```bash
-./generate_cff_benchmark benchmark p f 2 1
-./generate_cff_benchmark benchmark p g 2 4 1 1
-./generate_cff_benchmark benchmark p g 4 8 1 1
-./generate_cff_benchmark benchmark m g 1 2 4 1 1
-```
-
-### Normal Mode (without benchmark)
-
-The program still works normally without benchmark:
-
-```bash
-./generate_cff_benchmark p f 2 1
-./generate_cff_benchmark p g 2 4 1 1
-```
-
-### Benchmark Script (optional)
-
-Use the `run_benchmarks.sh` script for more flexibility:
-
-```bash
-# Run predefined tests
-./run_benchmarks.sh
-
-# Run custom tests (edit CUSTOM_TESTS array in script)
-./run_benchmarks.sh custom
-
-# Run a specific test
-./run_benchmarks.sh single p f 2 1
-
-# Save results to file
-./run_benchmarks.sh save
-```
-
-## Test Configuration
-
-### In main_benchmark.c
-
-To change predefined tests in `benchmark` mode, edit the `run_all_benchmarks()` function in `main_benchmark.c`:
-
-```c
-void run_all_benchmarks(void) {
-    /* Test 1: ./generate_cff p f 2 1 */
-    run_benchmark_f('p', 2, 1);
-    
-    /* Test 2: ./generate_cff p g 2 4 1 1 */
-    long Fq_steps_test2[2] = {2, 4};
-    long k_steps_test2[2] = {1, 1};
-    run_benchmark_g('p', 0, Fq_steps_test2, k_steps_test2);
-    
-    /* Add more tests here... */
-}
-```
-
-### In run_benchmarks.sh
-
-Edit the `PREDEFINED_TESTS` or `CUSTOM_TESTS` arrays:
-
-```bash
 PREDEFINED_TESTS=(
     "p f 2 1"
     "p g 2 4 1 1"
-    "p g 4 8 1 1"
+    "p g 4 4 1 2"
+    "p g 4 16 2 2"
+    "p g 16 16 2 3"
+    "p g 16 16 3 4"
 )
 
+# Custom tests (used with ./run_benchmarks.sh custom)
 CUSTOM_TESTS=(
     "p f 3 1"
     "p g 3 9 1 1"
 )
-```
 
-### Number of Iterations
+# FUNCTIONS
 
-To change the number of iterations (default: 100), edit `main_benchmark.c`:
+print_header() {
+    echo ""
+    echo "================================================================================"
+    echo "                     CFF BUILDER - BENCHMARK AUTOMATION                         "
+    echo "================================================================================"
+    echo ""
+}
 
-```c
-#define BENCHMARK_ITERATIONS 100
-```
+check_executable() {
+    if [ ! -f "$EXECUTABLE" ]; then
+        echo "Error: Executable '$EXECUTABLE' not found."
+        echo "Run 'make' first to compile the project."
+        exit 1
+    fi
+}
 
-## Example Output
+run_single_benchmark() {
+    local args="$@"
+    echo "Running: $EXECUTABLE benchmark $args"
+    $EXECUTABLE benchmark $args
+}
 
-```
-################################################################################
-#                    CFF BUILDER AUTOMATED BENCHMARK                          #
-#                         100 iterations per test                              #
-################################################################################
+run_predefined_tests() {
+    local test_count=${#PREDEFINED_TESTS[@]}
+    local current=1
+    
+    echo "Total tests: $test_count"
+    echo ""
+    
+    for test in "${PREDEFINED_TESTS[@]}"; do
+        echo "--------------------------------------------------------------------------------"
+        echo "Test $current of $test_count"
+        echo "--------------------------------------------------------------------------------"
+        
+        $EXECUTABLE benchmark $test
+        
+        ((current++))
+    done
+}
 
-================================================================================
-  TEST: ./generate_cff p f 2 1
-  Running 100 iterations...
-================================================================================
-Generating initial CFF in 'CFFs/1-CFF(4,4).txt'...
-Initial CFF matrix of 4x4 generated.
+run_custom_tests() {
+    local test_count=${#CUSTOM_TESTS[@]}
+    local current=1
+    
+    echo "Total tests: $test_count"
+    echo ""
+    
+    for test in "${CUSTOM_TESTS[@]}"; do
+        echo "--------------------------------------------------------------------------------"
+        echo "Test $current of $test_count"
+        echo "--------------------------------------------------------------------------------"
+        
+        $EXECUTABLE benchmark $test
+        
+        ((current++))
+    done
+}
 
-  RESULTS:
-    Iterations: 100
-    Time 1 (Inverted Index + CFF Generation):  0.000147 seconds (average)
-    Time 2 (Only CFF Matrix Generation):       0.000043 seconds (average)
-================================================================================
+save_results() {
+    local timestamp=$(date "+%Y-%m-%d %H:%M:%S")
+    
+    echo ""
+    echo "Saving results to '$OUTPUT_FILE'..."
+    
+    {
+        echo "================================================================================"
+        echo "CFF BUILDER BENCHMARK RESULTS"
+        echo "Date: $timestamp"
+        echo "================================================================================"
+        echo ""
+        
+        for test in "${PREDEFINED_TESTS[@]}"; do
+            $EXECUTABLE benchmark $test 2>&1
+            echo ""
+        done
+        
+    } >> "$OUTPUT_FILE"
+    
+    echo "Results saved successfully!"
+}
 
-================================================================================
-  TEST: ./generate_cff p g 2 4 1 1
-  Running 100 iterations...
-================================================================================
+print_usage() {
+    echo "Usage:"
+    echo "  $0              - Run all predefined benchmarks"
+    echo "  $0 custom       - Run custom benchmarks"
+    echo "  $0 single <args> - Run a single benchmark"
+    echo "  $0 save         - Run and save results to file"
+    echo ""
+    echo "Examples:"
+    echo "  $0 single p f 2 1"
+    echo "  $0 single p g 2 4 1 1"
+    echo "  $0 single m g 1 2 4 1 1"
+}
 
-  RESULTS:
-    Iterations: 100
-    Time 1 (Inverted Index + CFF Generation + Concatenation): 0.000169 seconds (average)
-    Time 2 (Only CFF Matrix Generation + Concatenation):      0.000060 seconds (average)
-================================================================================
+# MAIN
 
-################################################################################
-#                         BENCHMARK COMPLETE                                  #
-################################################################################
-```
+print_header
+check_executable
 
-## What Each Time Measures
+case "${1:-}" in
+    "")
+        echo "Running predefined tests..."
+        run_predefined_tests
+        ;;
+    "custom")
+        echo "Running custom tests..."
+        run_custom_tests
+        ;;
+    "single")
+        shift
+        if [ $# -lt 3 ]; then
+            echo "Error: Insufficient arguments for single test."
+            print_usage
+            exit 1
+        fi
+        run_single_benchmark "$@"
+        ;;
+    "save")
+        echo "Running tests and saving results..."
+        run_predefined_tests
+        save_results
+        ;;
+    "help"|"-h"|"--help")
+        print_usage
+        ;;
+    *)
+        echo "Unknown option: $1"
+        print_usage
+        exit 1
+        ;;
+esac
 
-### In `generate_cff` (action 'f'):
-- **Time 1**: Complete `generate_new_cff_blocks()`
-- **Time 2**: Only `generate_single_cff()` (internal)
-
-### In `embeed_cff` (action 'g'):
-- **Time 1**: `generate_new_cff_blocks()` + final matrix allocation + 4 concatenation loops
-- **Time 2**: 3 calls to `generate_single_cff()` + 4 concatenation loops
-
-## Files
-
-| File | Description |
-|------|-------------|
-| `cff_builder_benchmark.c` | Main code with time instrumentation |
-| `cff_builder_benchmark.h` | Header with benchmark declarations |
-| `cff_file_generator.c` | File read/write functions |
-| `cff_file_generator.h` | File generator header |
-| `main_benchmark.c` | Entry point with benchmark system |
-| `Makefile` | Build script |
-| `run_benchmarks.sh` | Auxiliary script for benchmarks |
-
-## Dependencies
-
-- GCC with OpenMP support
-- FLINT (Fast Library for Number Theory)
-- GMP (GNU Multiple Precision)
-- MPFR
-- GLib 2.0
-
-## Clean
-
-```bash
-make clean
-```
+echo ""
+echo "================================================================================"
+echo "                            BENCHMARK COMPLETE                                  "
+echo "================================================================================"
