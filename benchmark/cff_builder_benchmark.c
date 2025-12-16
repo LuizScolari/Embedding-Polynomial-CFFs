@@ -4,12 +4,15 @@
  * 
  * This file contains the functions responsible for generating CFFs using
  * polynomial and monotone constructions over finite fields.
+ * 
+ * BENCHMARK VERSION: Includes timing measurements for performance analysis.
  */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h> 
 #include <math.h>
+#include <time.h>
 #include <glib.h>
 #include <omp.h>
 #include "flint/flint.h"
@@ -17,10 +20,10 @@
 #include "flint/fq_nmod.h"
 #include "flint/fq_nmod_poly.h"
 #include "flint/nmod_poly.h"
-#include "cff_builder.h"
+#include "cff_builder_benchmark.h"
 #include "cff_file_generator.h"
 
-/* 
+/*
  *  GLOBAL VARIABLES
  */
 
@@ -28,7 +31,29 @@ static fq_nmod_ctx_t global_ctx;
 static int global_ctx_initialized = 0;
 
 /*
- *   FUNCTION PROTOTYPES
+ *  BENCHMARK GLOBAL VARIABLES
+ */
+
+/** @brief Flag to enable/disable benchmark mode */
+int benchmark_mode = 0;
+
+/** @brief Flag to indicate if this is the last iteration (should save file) */
+int benchmark_last_iteration = 0;
+
+/** @brief Accumulated time for Time 1 (inverted index + CFF generation + concatenation) */
+double benchmark_time1_accumulated = 0.0;
+
+/** @brief Accumulated time for Time 2 (only CFF matrix generation + concatenation) */
+double benchmark_time2_accumulated = 0.0;
+
+/** @brief Accumulated time for generate_single_cff calls */
+double benchmark_generate_single_cff_time = 0.0;
+
+/** @brief Accumulated time for concatenation loops */
+double benchmark_concatenation_time = 0.0;
+
+/*
+ *  FUNCTION PROTOTYPES
  */
 
 /* Main Functions */
@@ -75,6 +100,28 @@ static void free_generated_cffs(generated_cffs* cffs);
 static void free_polynomial_partition(polynomial_partition* poly_part, const fq_nmod_ctx_t ctx);
 
 /* 
+ *  BENCHMARK HELPER FUNCTIONS
+ */
+
+/**
+ * @brief Gets current time in seconds with high precision.
+ * @return Current time in seconds.
+ */
+static inline double get_time_seconds(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec + ts.tv_nsec / 1e9;
+}
+
+/**
+ * @brief Resets benchmark timing accumulators for a new iteration.
+ */
+void benchmark_reset_iteration(void) {
+    benchmark_generate_single_cff_time = 0.0;
+    benchmark_concatenation_time = 0.0;
+}
+
+/* 
  *  MAIN FUNCTIONS
  */
 
@@ -89,6 +136,13 @@ static void free_polynomial_partition(polynomial_partition* poly_part, const fq_
  * @param k Maximum polynomial degree.
  */
 void generate_cff(char construction, int d, long fq, long k) {
+    double time1_start = 0.0, time1_end = 0.0;
+    
+    /* Reset iteration timers */
+    if (benchmark_mode) {
+        benchmark_reset_iteration();
+    }
+    
     long t0, n0;
     
     if (construction == 'm') {
@@ -102,13 +156,29 @@ void generate_cff(char construction, int d, long fq, long k) {
     
     char filename0[100];
     snprintf(filename0, sizeof(filename0), "CFFs/%d-CFF(%ld,%ld).txt", d, t0, n0);
-    printf("Generating initial CFF in '%s'...\n", filename0);
+    
+    if (!benchmark_mode || benchmark_last_iteration) {
+        printf("Generating initial CFF in '%s'...\n", filename0);
+    }
 
     long fq_array[1] = { fq };
     long k_array[1] = { k };
     int num_steps = 1;
 
+    /* TIME 1 START: Inverted index + CFF generation */
+    if (benchmark_mode) {
+        time1_start = get_time_seconds();
+    }
+    
     generated_cffs new_blocks = generate_new_cff_blocks(construction, d, fq_array, k_array, num_steps);
+    
+    /* TIME 1 END */
+    if (benchmark_mode) {
+        time1_end = get_time_seconds();
+        benchmark_time1_accumulated += (time1_end - time1_start);
+        /* For generate_cff, Time 2 = time spent in generate_single_cff */
+        benchmark_time2_accumulated += benchmark_generate_single_cff_time;
+    }
 
     uint64_t** final_cff = new_blocks.cff_new;
     long final_rows = new_blocks.rows_new;
@@ -118,9 +188,15 @@ void generate_cff(char construction, int d, long fq, long k) {
         printf("Error: Failed to generate initial CFF matrix.\n");
         return;
     }
-    printf("Initial CFF matrix of %ldx%ld generated.\n", final_rows, final_cols);
+    
+    if (!benchmark_mode || benchmark_last_iteration) {
+        printf("Initial CFF matrix of %ldx%ld generated.\n", final_rows, final_cols);
+    }
 
-    write_cff_to_file(filename0, construction, d, fq_array, 1, k_array, 1, final_cff, final_rows, final_cols);
+    /* Only write to file on last iteration or if not in benchmark mode */
+    if (!benchmark_mode || benchmark_last_iteration) {
+        write_cff_to_file(filename0, construction, d, fq_array, 1, k_array, 1, final_cff, final_rows, final_cols);
+    }
 
     new_blocks.cff_old_new = NULL;
     new_blocks.cff_new_old = NULL;
@@ -140,6 +216,14 @@ void generate_cff(char construction, int d, long fq, long k) {
  * @param k_steps Array with maximum polynomial degrees.
  */
 void embeed_cff(char construction, int d, long* Fq_steps, long* k_steps){
+    double time1_start = 0.0, time1_end = 0.0;
+    double concat_start = 0.0, concat_end = 0.0;
+    
+    /* Reset iteration timers */
+    if (benchmark_mode) {
+        benchmark_reset_iteration();
+    }
+    
     int d0;
     long t0, n0;
     
@@ -197,6 +281,11 @@ void embeed_cff(char construction, int d, long* Fq_steps, long* k_steps){
         }
     }
 
+    /* TIME 1 START: Inverted index + CFF generation + concatenation */
+    if (benchmark_mode) {
+        time1_start = get_time_seconds();
+    }
+
     generated_cffs new_blocks = generate_new_cff_blocks(construction, d, new_Fq_steps, new_k_steps, new_fqs_count);
 
     long new_total_rows = old_rows + new_blocks.rows_new_old;
@@ -209,6 +298,11 @@ void embeed_cff(char construction, int d, long* Fq_steps, long* k_steps){
     uint64_t** final_cff = (uint64_t**) malloc(new_total_rows * sizeof(uint64_t*));
     for (long i = 0; i < new_total_rows; i++) {
         final_cff[i] = (uint64_t*) calloc(words_per_row, sizeof(uint64_t));
+    }
+
+    /* CONCATENATION START - also measured for Time 2 */
+    if (benchmark_mode) {
+        concat_start = get_time_seconds();
     }
 
     for(long i=0; i < old_rows; i++) {
@@ -243,6 +337,20 @@ void embeed_cff(char construction, int d, long* Fq_steps, long* k_steps){
         }
     }
 
+    /* CONCATENATION END */
+    if (benchmark_mode) {
+        concat_end = get_time_seconds();
+        benchmark_concatenation_time += (concat_end - concat_start);
+    }
+
+    /* TIME 1 END */
+    if (benchmark_mode) {
+        time1_end = get_time_seconds();
+        benchmark_time1_accumulated += (time1_end - time1_start);
+        /* Time 2 = generate_single_cff time + concatenation time */
+        benchmark_time2_accumulated += benchmark_generate_single_cff_time + benchmark_concatenation_time;
+    }
+
     int d1;
     long t1, n1;
     
@@ -259,7 +367,10 @@ void embeed_cff(char construction, int d, long* Fq_steps, long* k_steps){
     char filename1[100]; 
     snprintf(filename1, sizeof(filename1), "CFFs/%d-CFF(%ld,%ld).txt", d1, t1, n1);
 
-    write_cff_to_file(filename1, construction, d1, new_Fq_steps, new_fqs_count, new_k_steps, new_ks_count, final_cff, new_total_rows, new_total_cols);
+    /* Only write to file on last iteration or if not in benchmark mode */
+    if (!benchmark_mode || benchmark_last_iteration) {
+        write_cff_to_file(filename1, construction, d1, new_Fq_steps, new_fqs_count, new_k_steps, new_ks_count, final_cff, new_total_rows, new_total_cols);
+    }
 
     free_matrix(cff_old_old, old_rows);
     free_generated_cffs(&new_blocks);
@@ -332,14 +443,38 @@ generated_cffs generate_new_cff_blocks(char construction, int d, long* Fq_steps,
         fq_nmod_ctx_init_modulus(global_ctx, fq_nmod_ctx_modulus(ctx), "a");
         global_ctx_initialized = 1;
     }
-        
+    
+    /* Timing for generate_single_cff calls */
+    double gen_start, gen_end;
+    
+    if (benchmark_mode) {
+        gen_start = get_time_seconds();
+    }
     result.cff_old_new = generate_single_cff(&result.rows_old_new, combos.combos_old, combos.count_old, inverted_index_new, poly_part.num_new_polys);
+    if (benchmark_mode) {
+        gen_end = get_time_seconds();
+        benchmark_generate_single_cff_time += (gen_end - gen_start);
+    }
     result.cols_old_new = poly_part.num_new_polys;
     
+    if (benchmark_mode) {
+        gen_start = get_time_seconds();
+    }
     result.cff_new_old = generate_single_cff(&result.rows_new_old, combos.combos_new, num_new_rows, inverted_index_old, poly_part.num_old_polys);
+    if (benchmark_mode) {
+        gen_end = get_time_seconds();
+        benchmark_generate_single_cff_time += (gen_end - gen_start);
+    }
     result.cols_new_old = poly_part.num_old_polys;
 
+    if (benchmark_mode) {
+        gen_start = get_time_seconds();
+    }
     result.cff_new = generate_single_cff(&result.rows_new, combos.combos_new, num_new_rows, inverted_index_new, poly_part.num_new_polys);
+    if (benchmark_mode) {
+        gen_end = get_time_seconds();
+        benchmark_generate_single_cff_time += (gen_end - gen_start);
+    }
     result.cols_new = poly_part.num_new_polys;
     
     g_hash_table_destroy(inverted_index_old);
