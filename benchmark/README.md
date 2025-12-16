@@ -7,7 +7,7 @@ This benchmark system automatically measures the execution time of CFF Builder w
 - **Time 1**: Total time for inverted index + CFF generation (+ concatenation for embedding)
 - **Time 2**: Time for CFF matrix generation + concatenation only
 
-Each test is executed **10 times** and the final result is the **average** of the times.
+Each test is executed **100 times** and the final result is the **average** of the times.
 
 ## Compilation
 
@@ -24,8 +24,8 @@ make
 ```
 
 This automatically executes:
-1. `./generate_cff p f 2 1` (10 times, calculates times, saves last CFF)
-2. `./generate_cff p g 2 4 1 1` (10 times, calculates times, saves last CFF)
+1. `./generate_cff p f 2 1` (100 times, calculates times, saves last CFF)
+2. `./generate_cff p g 2 4 1 1` (100 times, calculates times, saves last CFF)
 
 ### Individual Benchmark
 
@@ -77,9 +77,9 @@ Use the `run_benchmarks.sh` script for more flexibility:
 
 ## Test Configuration
 
-### In main.c
+### In main_benchmark.c
 
-To change predefined tests in `benchmark` mode, edit the `run_all_benchmarks()` function in `main.c`:
+To change predefined tests in `benchmark` mode, edit the `run_all_benchmarks()` function in `main_benchmark.c`:
 
 ```c
 void run_all_benchmarks(void) {
@@ -114,33 +114,47 @@ CUSTOM_TESTS=(
 
 ### Number of Iterations
 
-To change the number of iterations (default: 10), edit `main.c`:
+To change the number of iterations (default: 100), edit `main_benchmark.c`:
 
 ```c
-#define BENCHMARK_ITERATIONS 10
+#define BENCHMARK_ITERATIONS 100
 ```
 
 ## Example Output
 
 ```
+################################################################################
+#                    CFF BUILDER AUTOMATED BENCHMARK                          #
+#                         100 iterations per test                              #
+################################################################################
+
 ================================================================================
-BENCHMARK: ./generate_cff p f 2 1
-Running 10 iterations...
+  TEST: ./generate_cff p f 2 1
+  Running 100 iterations...
 ================================================================================
-  Iteration 1/10...
-  Iteration 2/10...
-  ...
-  Iteration 10/10...
 Generating initial CFF in 'CFFs/1-CFF(4,4).txt'...
 Initial CFF matrix of 4x4 generated.
 
---------------------------------------------------------------------------------
-RESULTS for: ./generate_cff p f 2 1
---------------------------------------------------------------------------------
-  Iterations: 10
-  Time 1 (Inverted Index + CFF Generation):  0.000234 seconds (average)
-  Time 2 (Only CFF Matrix Generation):       0.000089 seconds (average)
---------------------------------------------------------------------------------
+  RESULTS:
+    Iterations: 100
+    Time 1 (Inverted Index + CFF Generation):  0.000147 seconds (average)
+    Time 2 (Only CFF Matrix Generation):       0.000043 seconds (average)
+================================================================================
+
+================================================================================
+  TEST: ./generate_cff p g 2 4 1 1
+  Running 100 iterations...
+================================================================================
+
+  RESULTS:
+    Iterations: 100
+    Time 1 (Inverted Index + CFF Generation + Concatenation): 0.000169 seconds (average)
+    Time 2 (Only CFF Matrix Generation + Concatenation):      0.000060 seconds (average)
+================================================================================
+
+################################################################################
+#                         BENCHMARK COMPLETE                                  #
+################################################################################
 ```
 
 ## What Each Time Measures
@@ -157,11 +171,11 @@ RESULTS for: ./generate_cff p f 2 1
 
 | File | Description |
 |------|-------------|
-| `cff_builder.c` | Main code with time instrumentation |
-| `cff_builder.h` | Header with benchmark declarations |
+| `cff_builder_benchmark.c` | Main code with time instrumentation |
+| `cff_builder_benchmark.h` | Header with benchmark declarations |
 | `cff_file_generator.c` | File read/write functions |
 | `cff_file_generator.h` | File generator header |
-| `main.c` | Entry point with benchmark system |
+| `main_benchmark.c` | Entry point with benchmark system |
 | `Makefile` | Build script |
 | `run_benchmarks.sh` | Auxiliary script for benchmarks |
 
