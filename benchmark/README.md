@@ -141,8 +141,6 @@ To change the number of iterations (default: 100), edit `main_benchmark.c`:
   TEST: ./generate_cff p f 2 1
   Running 100 iterations...
 ================================================================================
-Generating initial CFF in 'CFFs/1-CFF(4,4).txt'...
-Initial CFF matrix of 4x4 generated.
 
   RESULTS:
     Iterations: 100
