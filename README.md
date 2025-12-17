@@ -134,13 +134,3 @@ make
 ```
 
 For more details on how to run the benchmarks, configure iterations, and interpret results, see the [benchmark/README.md](benchmark/README.md).
-
------
-
-## 🎓 Supervision
-
-This research is being supervised by **Professor Thaís Bardini Idalino** ([Website](https://thaisidalino.github.io), [Google Scholar](https://scholar.google.com/citations?user=hS_R7ZsAAAAJ&hl)).
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](https://www.google.com/search?q=LICENSE) file for details.
