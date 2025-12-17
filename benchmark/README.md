@@ -7,7 +7,9 @@ This benchmark system automatically measures the execution time of CFF Builder w
 - **Time 1**: Total time for inverted index + CFF generation (+ concatenation for embedding)
 - **Time 2**: Time for CFF matrix generation + concatenation only
 
-Each test is executed **100 times** and the final result is the **average** of the times.
+Each test is executed **100 times** by default and the final result is the **average** of the times.
+
+> **Note:** The benchmark tests are computationally intensive. To reduce execution time, you can change the number of iterations in `main_benchmark.c` by editing the `BENCHMARK_ITERATIONS` constant.
 
 ## Compilation
 
@@ -17,20 +19,39 @@ make
 
 ## Usage
 
-### Automatic Benchmark Mode (all predefined tests)
+### Quick Start (Predefined Fast Tests)
 
 ```bash
-./generate_cff_benchmark benchmark
+./run_benchmarks.sh
 ```
 
-This automatically executes:
-1. `./generate_cff p f 2 1` (100 times, calculates times, saves last CFF)
-2. `./generate_cff p g 2 4 1 1` (100 times, calculates times, saves last CFF)
+This runs a small set of fast tests for quick validation.
+
+### Paper Benchmark Tests
+
+The following test suites were used in the paper and can be run with the benchmark script:
+
+| Command | Description | Complexity |
+|---------|-------------|------------|
+| `./run_benchmarks.sh f2` | Tests over F₂ field | Heavy |
+| `./run_benchmarks.sh f3` | Tests over F₃ field | Heavy |
+| `./run_benchmarks.sh f5` | Tests over F₅ field | Moderate |
+| `./run_benchmarks.sh monotone` | Monotone CFF tests | Moderate |
+
+**Warning:** These tests are computationally expensive and may take a long time to complete.
 
 ### Individual Benchmark
 
+Using the script:
 ```bash
-# Polynomial from scratch
+./run_benchmarks.sh single p f 2 1
+./run_benchmarks.sh single p g 2 4 1 1
+./run_benchmarks.sh single m g 1 2 4 1 1
+```
+
+Or directly with the executable:
+```bash
+# Polynomial first
 ./generate_cff_benchmark benchmark p f <q> <k>
 
 # Polynomial embedding
@@ -40,94 +61,82 @@ This automatically executes:
 ./generate_cff_benchmark benchmark m g <d> <q0> <q1> <k0> <k1>
 ```
 
-**Examples:**
+### Save Results to File
+
 ```bash
-./generate_cff_benchmark benchmark p f 2 1
-./generate_cff_benchmark benchmark p g 2 4 1 1
-./generate_cff_benchmark benchmark p g 4 8 1 1
-./generate_cff_benchmark benchmark m g 1 2 4 1 1
+./run_benchmarks.sh save
 ```
+
+Runs the predefined fast tests and saves results to `benchmark_results.txt`.
 
 ### Normal Mode (without benchmark)
 
-The program still works normally without benchmark:
+The program also works without benchmark (single execution):
 
 ```bash
 ./generate_cff_benchmark p f 2 1
 ./generate_cff_benchmark p g 2 4 1 1
+./generate_cff_benchmark m g 1 2 4 1 1
 ```
 
-### Benchmark Script (optional)
+## Test Suites Detail
 
-Use the `run_benchmarks.sh` script for more flexibility:
-
-```bash
-# Run predefined tests
-./run_benchmarks.sh
-
-# Run custom tests (edit CUSTOM_TESTS array in script)
-./run_benchmarks.sh custom
-
-# Run a specific test
-./run_benchmarks.sh single p f 2 1
-
-# Save results to file
-./run_benchmarks.sh save
+### F₂ Field Tests (`./run_benchmarks.sh f2`)
+```
+p f 2 1
+p g 2 4 1 1
+p g 4 4 1 2
+p g 4 16 2 2
+p g 16 16 2 3
+p g 16 16 3 4
 ```
 
-## Test Configuration
-
-### In main_benchmark.c
-
-To change predefined tests in `benchmark` mode, edit the `run_all_benchmarks()` function in `main_benchmark.c`:
-
-```c
-void run_all_benchmarks(void) {
-    /* Test 1: ./generate_cff p f 2 1 */
-    run_benchmark_f('p', 2, 1);
-    
-    /* Test 2: ./generate_cff p g 2 4 1 1 */
-    long Fq_steps_test2[2] = {2, 4};
-    long k_steps_test2[2] = {1, 1};
-    run_benchmark_g('p', 0, Fq_steps_test2, k_steps_test2);
-    
-    /* Add more tests here... */
-}
+### F₃ Field Tests (`./run_benchmarks.sh f3`)
+```
+p f 3 1
+p g 3 3 1 2
+p g 3 9 2 2
+p g 9 9 2 3
+p g 9 9 3 4
+p g 9 9 4 5
 ```
 
-### In run_benchmarks.sh
-
-Edit the `PREDEFINED_TESTS` or `CUSTOM_TESTS` arrays:
-
-```bash
-PREDEFINED_TESTS=(
-    "p f 2 1"
-    "p g 2 4 1 1"
-    "p g 4 8 1 1"
-)
-
-CUSTOM_TESTS=(
-    "p f 3 1"
-    "p g 3 9 1 1"
-)
+### F₅ Field Tests (`./run_benchmarks.sh f5`)
+```
+p f 5 1
+p g 5 5 1 2
+p g 5 25 2 2
+p g 25 25 2 3
 ```
 
-### Number of Iterations
+### Monotone Tests (`./run_benchmarks.sh monotone`)
+```
+p f 2 1
+m g 1 2 4 1 1
+m g 1 4 16 1 1
+m g 1 16 256 1 1
+p f 3 1
+m g 2 3 9 1 1
+m g 2 9 81 1 1
+p f 3 2
+m g 1 3 27 2 2
+p f 5 2
+m g 2 5 25 2 2
+```
+
+## Configuration
+
+### Changing Number of Iterations
 
 To change the number of iterations (default: 100), edit `main_benchmark.c`:
 
 ```c
-#define BENCHMARK_ITERATIONS 100
+#define BENCHMARK_ITERATIONS 100  // Change this value
 ```
 
 ## Example Output
 
 ```
-################################################################################
-#                    CFF BUILDER AUTOMATED BENCHMARK                          #
-#                         100 iterations per test                              #
-################################################################################
-
 ================================================================================
   TEST: ./generate_cff p f 2 1
   Running 100 iterations...
@@ -151,10 +160,6 @@ Initial CFF matrix of 4x4 generated.
     Time 1 (Inverted Index + CFF Generation + Concatenation): 0.000169 seconds (average)
     Time 2 (Only CFF Matrix Generation + Concatenation):      0.000060 seconds (average)
 ================================================================================
-
-################################################################################
-#                         BENCHMARK COMPLETE                                  #
-################################################################################
 ```
 
 ## What Each Time Measures
@@ -177,7 +182,7 @@ Initial CFF matrix of 4x4 generated.
 | `cff_file_generator.h` | File generator header |
 | `main_benchmark.c` | Entry point with benchmark system |
 | `Makefile` | Build script |
-| `run_benchmarks.sh` | Auxiliary script for benchmarks |
+| `run_benchmarks.sh` | Benchmark automation script |
 
 ## Dependencies
 

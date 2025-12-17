@@ -1,5 +1,5 @@
 /**
- * @file cff_builder.h
+ * @file cff_builder_benchmark.h
  * @brief Definitions and structures for Cover-Free Families (CFFs) construction.
  * 
  * This file contains type definitions, macros, and function prototypes
@@ -8,8 +8,8 @@
  * BENCHMARK VERSION: Includes benchmark variable declarations.
  */
 
-#ifndef CFF_BUILDER_H
-#define CFF_BUILDER_H
+#ifndef CFF_BUILDER_BENCHMARK_H
+#define CFF_BUILDER_BENCHMARK_H
 
 #include <stdint.h> 
 #include "flint/fq_nmod.h"
@@ -156,4 +156,4 @@ extern double benchmark_time1_accumulated;
 /** @brief Accumulated time for Time 2 (only CFF matrix generation + concatenation) */
 extern double benchmark_time2_accumulated;
 
-#endif /* CFF_BUILDER_H */
+#endif /* CFF_BUILDER_BENCHMARK_H */

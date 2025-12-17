@@ -156,10 +156,6 @@ void generate_cff(char construction, int d, long fq, long k) {
     
     char filename0[100];
     snprintf(filename0, sizeof(filename0), "CFFs/%d-CFF(%ld,%ld).txt", d, t0, n0);
-    
-    if (!benchmark_mode || benchmark_last_iteration) {
-        printf("Generating initial CFF in '%s'...\n", filename0);
-    }
 
     long fq_array[1] = { fq };
     long k_array[1] = { k };
@@ -187,10 +183,6 @@ void generate_cff(char construction, int d, long fq, long k) {
     if (final_cff == NULL) {
         printf("Error: Failed to generate initial CFF matrix.\n");
         return;
-    }
-    
-    if (!benchmark_mode || benchmark_last_iteration) {
-        printf("Initial CFF matrix of %ldx%ld generated.\n", final_rows, final_cols);
     }
 
     /* Only write to file on last iteration or if not in benchmark mode */

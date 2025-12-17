@@ -1,5 +1,5 @@
 /**
- * @file main.c
+ * @file main_benchmark.c
  * @brief Entry point for Cover-Free Families (CFFs) generation with benchmark support.
  * 
  * This program allows generating initial CFFs or expanding existing CFFs
@@ -16,6 +16,9 @@
 
 /* 
  *  BENCHMARK CONFIGURATION
+ *  
+ *  Change BENCHMARK_ITERATIONS to reduce execution time.
+ *  Default: 100 iterations per test.
  */
 
 /** @brief Number of iterations for benchmark averaging */
@@ -121,32 +124,6 @@ void run_benchmark_g(char construction, int d, long* Fq_steps, long* k_steps) {
 }
 
 /**
- * @brief Runs all predefined benchmark tests.
- * 
- * Executes a sequence of benchmark tests as specified.
- */
-void run_all_benchmarks(void) {
-    printf("\n");
-    printf("################################################################################\n");
-    printf("#                    CFF BUILDER AUTOMATED BENCHMARK                          #\n");
-    printf("#                         %d iterations per test                              #\n", BENCHMARK_ITERATIONS);
-    printf("################################################################################\n");
-    
-    /* Test 1: ./generate_cff p f 2 1 */
-    run_benchmark_f('p', 2, 1);
-    
-    /* Test 2: ./generate_cff p g 2 4 1 1 */
-    long Fq_steps_test2[2] = {2, 4};
-    long k_steps_test2[2] = {1, 1};
-    run_benchmark_g('p', 0, Fq_steps_test2, k_steps_test2);
-    
-    printf("\n");
-    printf("################################################################################\n");
-    printf("#                         BENCHMARK COMPLETE                                  #\n");
-    printf("################################################################################\n");
-}
-
-/**
  * @brief Prints usage information.
  */
 void print_usage(const char* program_name) {
@@ -157,10 +134,11 @@ void print_usage(const char* program_name) {
     fprintf(stderr, "    Monotone embedding:      %s m g <d> <q0> <q1> <k0> <k1>\n", program_name);
     fprintf(stderr, "\n");
     fprintf(stderr, "  Benchmark mode:\n");
-    fprintf(stderr, "    Run all benchmarks:      %s benchmark\n", program_name);
     fprintf(stderr, "    Single benchmark 'f':    %s benchmark p f <q> <k>\n", program_name);
     fprintf(stderr, "    Single benchmark 'g':    %s benchmark p g <q0> <q1> <k0> <k1>\n", program_name);
     fprintf(stderr, "    Single benchmark 'g' m:  %s benchmark m g <d> <q0> <q1> <k0> <k1>\n", program_name);
+    fprintf(stderr, "\n");
+    fprintf(stderr, "  Use run_benchmarks.sh for automated test suites (F2, F3, F5, MONOTONE).\n");
 }
 
 /**
@@ -183,12 +161,6 @@ int main(int argc, char *argv[]) {
 
     /* Check for benchmark mode */
     if (strcmp(argv[1], "benchmark") == 0) {
-        if (argc == 2) {
-            /* Run all predefined benchmarks */
-            run_all_benchmarks();
-            return 0;
-        }
-        
         /* Single benchmark with specific parameters */
         if (argc < 4) {
             fprintf(stderr, "Error: Insufficient arguments for benchmark.\n");

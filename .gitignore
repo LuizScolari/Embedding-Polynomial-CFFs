@@ -2,6 +2,7 @@
 build/
 *.o
 generate_cff
+generate_cff_benchmark
 prog
 
 # macOS
