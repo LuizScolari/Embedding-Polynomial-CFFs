@@ -9,6 +9,8 @@ This benchmark system automatically measures the execution time of CFF Builder w
 
 Each test is executed **100 times** by default and the final result is the **average** of the times.
 
+> **Important:** To generate a larger CFF, the previous CFF must be saved in a file. For this reason, the tests are executed in construction sequence order. However, file reading and writing operations are **not** included in the measured time — only the CFF generation algorithm is timed.
+
 > **Note:** The benchmark tests are computationally intensive. To reduce execution time, you can change the number of iterations in `main_benchmark.c` by editing the `BENCHMARK_ITERATIONS` constant.
 
 ## Compilation
@@ -81,48 +83,44 @@ The program also works without benchmark (single execution):
 
 ## Test Suites Detail
 
-### F₂ Field Tests (`./run_benchmarks.sh f2`)
-```
-p f 2 1
-p g 2 4 1 1
-p g 4 4 1 2
-p g 4 16 2 2
-p g 16 16 2 3
-p g 16 16 3 4
+### F₂ Field Tests
+
+```bash
+./run_benchmarks.sh f2
 ```
 
-### F₃ Field Tests (`./run_benchmarks.sh f3`)
-```
-p f 3 1
-p g 3 3 1 2
-p g 3 9 2 2
-p g 9 9 2 3
-p g 9 9 3 4
-p g 9 9 4 5
+Tests: 
+`p f 2 1` → `p g 2 4 1 1` → `p g 4 4 1 2` → `p g 4 16 2 2` → `p g 16 16 2 3` → `p g 16 16 3 4`
+
+### F₃ Field Tests
+
+```bash
+./run_benchmarks.sh f3
 ```
 
-### F₅ Field Tests (`./run_benchmarks.sh f5`)
-```
-p f 5 1
-p g 5 5 1 2
-p g 5 25 2 2
-p g 25 25 2 3
+Tests: 
+`p f 3 1` → `p g 3 3 1 2` → `p g 3 9 2 2` → `p g 9 9 2 3` → `p g 9 9 3 4` → `p g 9 9 4 5`
+
+### F₅ Field Tests
+
+```bash
+./run_benchmarks.sh f5
 ```
 
-### Monotone Tests (`./run_benchmarks.sh monotone`)
+Tests: 
+`p f 5 1` → `p g 5 5 1 2` → `p g 5 25 2 2` → `p g 25 25 2 3`
+
+### Monotone Tests
+
+```bash
+./run_benchmarks.sh monotone
 ```
-p f 2 1
-m g 1 2 4 1 1
-m g 1 4 16 1 1
-m g 1 16 256 1 1
-p f 3 1
-m g 2 3 9 1 1
-m g 2 9 81 1 1
-p f 3 2
-m g 1 3 27 2 2
-p f 5 2
-m g 2 5 25 2 2
-```
+
+Tests: 
+`p f 2 1` → `m g 1 2 4 1 1` → `m g 1 4 16 1 1` → `m g 1 16 256 1 1`  
+`p f 3 1` → `m g 2 3 9 1 1` → `m g 2 9 81 1 1` 
+`p f 3 2` → `m g 1 3 27 2 2` 
+`p f 5 2` → `m g 2 5 25 2 2`
 
 ## Configuration
 
@@ -167,7 +165,7 @@ To change the number of iterations (default: 100), edit `main_benchmark.c`:
 - **Time 2**: Only `generate_single_cff()` (internal)
 
 ### In `embeed_cff` (action 'g'):
-- **Time 1**: `generate_new_cff_blocks()` + final matrix allocation + 4 concatenation loops
+- **Time 1**: `generate_new_cff_blocks()` + 4 concatenation loops
 - **Time 2**: 3 calls to `generate_single_cff()` + 4 concatenation loops
 
 ## Files

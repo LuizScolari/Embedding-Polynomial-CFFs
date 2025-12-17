@@ -96,6 +96,23 @@ The `generate_cff` executable supports different operation modes. Arguments vary
 
 Output files will be generated in the `CFFs/` folder.
 
+## 📊 Benchmark
+
+The project includes an automated benchmark system to measure the execution time of CFF generation. The benchmarks measure two metrics:
+
+- **Time 1**: Total time for inverted index + CFF generation (+ concatenation for embedding)
+- **Time 2**: Time for CFF matrix generation + concatenation only
+
+### Quick Start
+
+```bash
+cd benchmark
+make
+./run_benchmarks.sh
+```
+
+For more details on how to run the benchmarks, configure iterations, and interpret results, see the [benchmark/README.md](benchmark/README.md).
+
 -----
 
 ## 🎓 Supervision
