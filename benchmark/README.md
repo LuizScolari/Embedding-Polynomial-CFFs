@@ -190,7 +190,7 @@ To change the number of iterations (default: 100), edit `main_benchmark.c`:
 ## Dependencies
 
 - GCC with OpenMP support
-- FLINT (Fast Library for Number Theory)
+- FLINT 3.3.1 (Fast Library for Number Theory)
 - GMP (GNU Multiple Precision)
 - MPFR
 - GLib 2.0

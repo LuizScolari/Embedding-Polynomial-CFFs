@@ -1,28 +1,50 @@
 # CFF Builder Makefile
+# (Support for Linux and macOS)
+
 TARGET = generate_cff
 
-# Compiler (Apple Clang)
+# Compiler
 CC = gcc
 
-# --- HOMEBREW PATHS (Automatic) ---
-BREW_PREFIX := $(shell brew --prefix)
+# OPERATING SYSTEM DETECTION
+UNAME_S := $(shell uname -s)
 
-# --- OPENMP CONFIGURATION FOR CLANG ---
-OMP_CFLAGS = -Xpreprocessor -fopenmp -I$(BREW_PREFIX)/opt/libomp/include
-OMP_LDFLAGS = -L$(BREW_PREFIX)/opt/libomp/lib -lomp
-
-# --- GLIB CONFIGURATION ---
+# GLIB CONFIGURATION
+# (Note: On Linux, ensure libglib2.0-dev is installed)
 GLIB_CFLAGS = $(shell pkg-config --cflags glib-2.0)
 GLIB_LDFLAGS = $(shell pkg-config --libs glib-2.0)
 
-# --- COMPILATION FLAGS ---
+# PLATFORM SPECIFIC CONFIGURATION
+ifeq ($(UNAME_S),Darwin)
+    # macOS Configuration (Homebrew + Clang)
+    BREW_PREFIX := $(shell brew --prefix)
+    
+    # OpenMP for Apple Clang
+    OMP_CFLAGS = -Xpreprocessor -fopenmp -I$(BREW_PREFIX)/opt/libomp/include
+    OMP_LDFLAGS = -L$(BREW_PREFIX)/opt/libomp/lib -lomp
+    
+    # Homebrew Include/Lib paths
+    PLATFORM_INCLUDES = -I$(BREW_PREFIX)/include
+    PLATFORM_LIBS = -L$(BREW_PREFIX)/lib
+else
+    # Linux Configuration (Standard GCC)
+    # OpenMP for GCC
+    OMP_CFLAGS = -fopenmp
+    OMP_LDFLAGS = -fopenmp
+    
+    # Standard paths (usually empty as libs are in /usr/lib)
+    PLATFORM_INCLUDES =
+    PLATFORM_LIBS =
+endif
+
+# COMPILATION FLAGS
 CFLAGS = -g -Wall -Wextra \
-         -I$(BREW_PREFIX)/include \
+         $(PLATFORM_INCLUDES) \
          $(OMP_CFLAGS) \
          $(GLIB_CFLAGS)
 
-# --- LINKING FLAGS ---
-LDFLAGS = -L$(BREW_PREFIX)/lib \
+# LINKING FLAGS
+LDFLAGS = $(PLATFORM_LIBS) \
           -lflint -lgmp -lm \
           $(OMP_LDFLAGS) \
           $(GLIB_LDFLAGS)
@@ -50,8 +72,3 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
 
 clean:
 	rm -rf $(BUILD_DIR) $(TARGET)
-
-
-
-
-

@@ -1,4 +1,5 @@
 # Makefile for CFF Builder with Benchmark Support
+# (Compatible with Linux and macOS)
 # 
 # Usage:
 #   make              - Build the benchmark version
@@ -8,28 +9,48 @@
 
 TARGET = generate_cff_benchmark
 
-# Compiler (Apple Clang)
+# Compiler
 CC = gcc
 
-# --- HOMEBREW PATHS (Automatic) ---
-BREW_PREFIX := $(shell brew --prefix)
+# OPERATING SYSTEM DETECTION
+UNAME_S := $(shell uname -s)
 
-# --- OPENMP CONFIGURATION FOR CLANG ---
-OMP_CFLAGS = -Xpreprocessor -fopenmp -I$(BREW_PREFIX)/opt/libomp/include
-OMP_LDFLAGS = -L$(BREW_PREFIX)/opt/libomp/lib -lomp
-
-# --- GLIB CONFIGURATION ---
+#  GLIB CONFIGURATION
+# Note: On Linux, ensure libglib2.0-dev is installed
 GLIB_CFLAGS = $(shell pkg-config --cflags glib-2.0)
 GLIB_LDFLAGS = $(shell pkg-config --libs glib-2.0)
 
-# --- COMPILATION FLAGS ---
+# PLATFORM SPECIFIC CONFIGURATION 
+ifeq ($(UNAME_S),Darwin)
+    # macOS Configuration (Homebrew) 
+    BREW_PREFIX := $(shell brew --prefix)
+    
+    # OpenMP for Clang/Apple
+    OMP_CFLAGS = -Xpreprocessor -fopenmp -I$(BREW_PREFIX)/opt/libomp/include
+    OMP_LDFLAGS = -L$(BREW_PREFIX)/opt/libomp/lib -lomp
+    
+    # Include/Lib paths for Homebrew
+    PLATFORM_INCLUDES = -I$(BREW_PREFIX)/include
+    PLATFORM_LIBS = -L$(BREW_PREFIX)/lib
+else
+    # Linux Configuration (Standard GCC)
+    # OpenMP for GCC
+    OMP_CFLAGS = -fopenmp
+    OMP_LDFLAGS = -fopenmp
+    
+    # Standard paths (usually empty if libs are in /usr/lib)
+    PLATFORM_INCLUDES =
+    PLATFORM_LIBS =
+endif
+
+# COMPILATION FLAGS
 CFLAGS = -O3 -Wall -Wextra \
-         -I$(BREW_PREFIX)/include \
+         $(PLATFORM_INCLUDES) \
          $(OMP_CFLAGS) \
          $(GLIB_CFLAGS)
 
-# --- LINKING FLAGS ---
-LDFLAGS = -L$(BREW_PREFIX)/lib \
+# LINKING FLAGS
+LDFLAGS = $(PLATFORM_LIBS) \
           -lflint -lgmp -lmpfr -lm \
           $(OMP_LDFLAGS) \
           $(GLIB_LDFLAGS)

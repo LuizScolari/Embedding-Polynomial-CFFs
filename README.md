@@ -39,10 +39,32 @@ To compile this project, you will need the following libraries installed on your
 
   * **GCC** or **Clang**
   * **Make**
-  * **FLINT** (Fast Library for Number Theory)
+  * **FLINT 3.3.1** (Fast Library for Number Theory)
   * **GMP** (GNU Multiple Precision Arithmetic Library)
   * **GLib 2.0**
   * **OpenMP** (libomp)
+
+### Supported Platforms
+
+This project supports **Linux** and **macOS**. The Makefile automatically detects the operating system and configures the appropriate compiler flags.
+
+| Platform | Compiler | Notes |
+|----------|----------|-------|
+| Linux | GCC | Standard configuration |
+| macOS | Clang | Requires Homebrew for dependencies |
+
+#### Installing Dependencies
+
+**Linux (Ubuntu/Debian):**
+```bash
+sudo apt-get install build-essential libgmp-dev libglib2.0-dev libomp-dev
+# FLINT 3.3.1 must be compiled from source (see flintlib.org)
+```
+
+**macOS (Homebrew):**
+```bash
+brew install gmp glib libomp flint
+```
 
 ## 💻 How to Run
 
