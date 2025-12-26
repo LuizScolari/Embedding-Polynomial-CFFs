@@ -1,10 +1,10 @@
-# Embedding Polynomial CFFs
+# Unbounded CFFs Implementation
 
 This project implements the generation and embedding (expansion) of **Cover-Free Families (CFFs)** using constructions based on polynomials over finite fields. The code is written in C and optimized for performance.
 
 ## 📚 What are CFFs?
 
-**Cover-Free Families (CFFs)** are combinatorial structures represented as binary matrices. A matrix is considered a $d$-CFF if the union of any $d$ columns does not completely cover any other remaining column.
+**Cover-Free Families (CFFs)** are combinatorial structures which can be represented as binary matrices. This matrix is considered a $d$-CFF if the union of any $d$ columns does not completely cover any other remaining column.
 
 They have important applications in:
 
@@ -16,13 +16,13 @@ They have important applications in:
 
 The project focuses on algebraic construction using polynomials over finite fields ($\mathbb{F}_q$).
 
-### Polynomial Construction (Standard)
+### Polynomial Construction - Embedding CFFs
 
-In this construction, matrix rows are indexed by pairs of elements $(x, y) \in \mathbb{F}_q \times \mathbb{F}_q$, and columns are indexed by polynomials of degree up to $k$. A position in the matrix is set to $1$ if the corresponding polynomial evaluated at $x$ yields $y$ (i.e., $P(x) = y$), and $0$ otherwise.
+In this construction, matrix rows are indexed by pairs of elements $(x, y) \in B \times \mathbb{F}_q$ where $B \in \mathbb{F}_q$ , and columns are indexed by polynomials of degree up to $k$. A position in the matrix is set to $1$ if the corresponding polynomial evaluated at $x$ yields $y$ (i.e., $P(x) = y$), and $0$ otherwise.
 
-### Monotone Construction
+### Monotone CFFs
 
-The Monotone construction is a variation designed for embedding operations. During expansion, rows are indexed by pairs $(x, y)$ where $x$ is restricted to a subset $B \subseteq \mathbb{F}_q$ corresponding to the smaller base field. The parameters $d$ and $k$ are always kept constant throughout the embedding process—only the field size $q$ changes.
+The Monotone construction is a variation designed for embedding operations. During expansion, rows are indexed by pairs $(x, y)$ where $x$ is restricted to a fixed subset $B \subseteq \mathbb{F}_q$ corresponding to the smaller base field. The parameters $d$ and $k$ are always kept constant throughout the embedding process—only the field size $q$ changes.
 
 ## 🚀 Hash Table Optimizations
 
@@ -85,7 +85,7 @@ The `generate_cff` executable supports different operation modes. Arguments vary
 
 #### Examples:
 
-  * **Generate a Polynomial CFF from scratch (`p f`):**
+  * **Generate an initial CFF from scratch (`p f`):**
 
       * Parameters: `q` (field size), `k` (degree).
 
@@ -95,7 +95,7 @@ The `generate_cff` executable supports different operation modes. Arguments vary
     ./generate_cff p f 3 1
     ```
 
-  * **Polynomial Embedding (Expansion) (`p g`):**
+  * **Embedding CFF (Expansion) (`p g`):**
 
       * Expands from a smaller field to a larger one.
       * Parameters: `initial_q` `final_q` `initial_k` `final_k`.
@@ -106,7 +106,7 @@ The `generate_cff` executable supports different operation modes. Arguments vary
     ./generate_cff p g 3 9 1 1
     ```
 
-  * **Monotone Embedding (Expansion) (`m g`):**
+  * **Monotone CFF (Expansion) (`m g`):**
 
       * Parameters: `d` `initial_q` `final_q` `initial_k` `final_k`.
 

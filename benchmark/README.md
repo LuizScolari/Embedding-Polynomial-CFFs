@@ -53,13 +53,13 @@ Using the script:
 
 Or directly with the executable:
 ```bash
-# Polynomial first
+# Initial CFF
 ./generate_cff_benchmark benchmark p f <q> <k>
 
-# Polynomial embedding
+# Embedding CFFs
 ./generate_cff_benchmark benchmark p g <q0> <q1> <k0> <k1>
 
-# Monotone embedding
+# Monotone CFFs
 ./generate_cff_benchmark benchmark m g <d> <q0> <q1> <k0> <k1>
 ```
 
