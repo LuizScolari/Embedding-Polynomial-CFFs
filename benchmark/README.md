@@ -171,7 +171,7 @@ To change the number of iterations (default: 100), edit `main_benchmark.c`:
 - **Time 1**: Complete `generate_new_cff_blocks()`
 - **Time 2**: Only `generate_single_cff()` (internal)
 
-### In `embeed_cff` (action 'g'):
+### In `embed_cff` (action 'g'):
 - **Time 1**: `generate_new_cff_blocks()` + 4 concatenation loops
 - **Time 2**: 3 calls to `generate_single_cff()` + 4 concatenation loops
 

@@ -59,7 +59,7 @@ void run_benchmark_f(char construction, long fq, long k) {
         /* Mark last iteration for file saving */
         benchmark_last_iteration = (i == BENCHMARK_ITERATIONS - 1) ? 1 : 0;
         
-        generate_cff(construction, 0, fq, k);
+        generate_cff(construction, fq, k);
     }
     
     benchmark_mode = 0;
@@ -89,10 +89,10 @@ void run_benchmark_g(char construction, int d, long* Fq_steps, long* k_steps) {
     printf("\n");
     printf("================================================================================\n");
     if (construction == 'p') {
-        printf("  TEST: ./generate_cff %c g %ld %ld %ld %ld\n", 
+        printf("  TEST: ./generate_cff_benchmark %c g %ld %ld %ld %ld\n", 
                construction, Fq_steps[0], Fq_steps[1], k_steps[0], k_steps[1]);
     } else {
-        printf("  TEST: ./generate_cff %c g %d %ld %ld %ld %ld\n", 
+        printf("  TEST: ./generate_cff_benchmark %c g %d %ld %ld %ld %ld\n", 
                construction, d, Fq_steps[0], Fq_steps[1], k_steps[0], k_steps[1]);
     }
     printf("  Running %d iterations...\n", BENCHMARK_ITERATIONS);
@@ -105,7 +105,7 @@ void run_benchmark_g(char construction, int d, long* Fq_steps, long* k_steps) {
         /* Mark last iteration for file saving */
         benchmark_last_iteration = (i == BENCHMARK_ITERATIONS - 1) ? 1 : 0;
         
-        embeed_cff(construction, d, Fq_steps, k_steps);
+        embed_cff(construction, d, Fq_steps, k_steps);
     }
     
     benchmark_mode = 0;
@@ -129,9 +129,9 @@ void run_benchmark_g(char construction, int d, long* Fq_steps, long* k_steps) {
 void print_usage(const char* program_name) {
     fprintf(stderr, "Usage:\n");
     fprintf(stderr, "  Normal mode:\n");
-    fprintf(stderr, "    Polynomial embedding:    %s p g <q0> <q1> <k0> <k1>\n", program_name);
-    fprintf(stderr, "    Polynomial from scratch: %s p f <q> <k>\n", program_name);
-    fprintf(stderr, "    Monotone embedding:      %s m g <d> <q0> <q1> <k0> <k1>\n", program_name);
+    fprintf(stderr, "    Initial CFF:       %s p f <q> <k>\n", program_name);
+    fprintf(stderr, "    Embedding CFFs:    %s p g <q0> <q1> <k0> <k1>\n", program_name);
+    fprintf(stderr, "    Monotone CFFs:     %s m g <d> <q0> <q1> <k0> <k1>\n", program_name);
     fprintf(stderr, "\n");
     fprintf(stderr, "  Benchmark mode:\n");
     fprintf(stderr, "    Single benchmark 'f':    %s benchmark p f <q> <k>\n", program_name);
@@ -196,9 +196,10 @@ int main(int argc, char *argv[]) {
                     free(Fq_steps); free(k_steps);
                     return 1;
                 }
-                Fq_steps[0] = atol(argv[4]);
+
+                Fq_steps[0] = atol(argv[4]); 
                 Fq_steps[1] = atol(argv[5]);
-                k_steps[0] = atol(argv[6]);
+                k_steps[0] = atol(argv[6]);  
                 k_steps[1] = atol(argv[7]);
             } else if (construction == 'm') {
                 if (argc != 9) {
@@ -206,10 +207,10 @@ int main(int argc, char *argv[]) {
                     free(Fq_steps); free(k_steps);
                     return 1;
                 }
-                d = atoi(argv[4]);
-                Fq_steps[0] = atol(argv[5]);
+                d = atol(argv[4]); 
+                Fq_steps[0] = atol(argv[5]); 
                 Fq_steps[1] = atol(argv[6]);
-                k_steps[0] = atol(argv[7]);
+                k_steps[0] = atol(argv[7]);  
                 k_steps[1] = atol(argv[8]);
             } else {
                 fprintf(stderr, "Error: Unknown construction type '%c'.\n", construction);
@@ -276,7 +277,7 @@ int main(int argc, char *argv[]) {
             k_steps[1] = atol(argv[7]); 
         }
 
-        embeed_cff(construction, d, Fq_steps, k_steps);
+        embed_cff(construction, d, Fq_steps, k_steps);
 
         free(Fq_steps);
         free(k_steps);
@@ -296,7 +297,7 @@ int main(int argc, char *argv[]) {
         long fq = atol(argv[3]);
         long k = atol(argv[4]);
 
-        generate_cff(construction, 0, fq, k);
+        generate_cff(construction, fq, k);
 
     } else {
         fprintf(stderr, "Error: Unknown action '%c'. Use 'g' or 'f'.\n", action);

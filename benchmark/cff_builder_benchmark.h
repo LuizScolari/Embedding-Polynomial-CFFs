@@ -128,20 +128,19 @@ typedef struct {
  * @param Fq_steps Array with finite field sizes.
  * @param k_steps Array with maximum polynomial degrees.
  */
-void embeed_cff(char construction, int d, long* Fq_steps, long* k_steps);
+void embed_cff(char construction, int d, long* Fq_steps, long* k_steps);
 
 /**
  * @brief Generates an initial CFF from basic parameters.
  * 
- * @param construction Construction type ('p' for polynomial, 'm' for monotone).
- * @param d CFF parameter d.
+ * @param construction Construction type ('p' for initial CFF).
  * @param fq Finite field size.
  * @param k Maximum polynomial degree.
  */
-void generate_cff(char construction, int d, long fq, long k);
+void generate_cff(char construction, long fq, long k);
 
 /*
- * BENCHMARK VARIABLES (defined in cff_builder.c)
+ * BENCHMARK VARIABLES (defined in cff_builder_benchmark.c)
  */
 
 /** @brief Flag to enable/disable benchmark mode */

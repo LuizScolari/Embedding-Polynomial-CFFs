@@ -73,7 +73,7 @@ F5_TESTS=(
     "p g 25 25 2 3"
 )
 
-# MONOTONE: Monotone CFF embedding benchmarks
+# MONOTONE: Monotone CFF benchmarks
 MONOTONE=(
     "p f 2 1"
     "m g 1 2 4 1 1"

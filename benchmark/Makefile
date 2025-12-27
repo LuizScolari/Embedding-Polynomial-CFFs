@@ -68,11 +68,17 @@ all: $(TARGET)
 	@echo "Build complete: $(TARGET)"
 	@echo ""
 	@echo "Usage:"
-	@echo "  ./$(TARGET) benchmark                           - Run all predefined benchmarks"
-	@echo "  ./$(TARGET) benchmark p f <q> <k>               - Single benchmark from scratch"
+	@echo "  ./$(TARGET) benchmark p f <q> <k>               - Single benchmark from initial CFF"
 	@echo "  ./$(TARGET) benchmark p g <q0> <q1> <k0> <k1>   - Single benchmark embedding"
 	@echo "  ./$(TARGET) p f <q> <k>                         - Normal mode (no benchmark)"
 	@echo "  ./$(TARGET) p g <q0> <q1> <k0> <k1>             - Normal mode embedding"
+	@echo ""
+	@echo " benchmark script tests:"
+	@echo "  ./run_benchmarks.sh              - Run predefined fast tests (quick validation)"
+	@echo "  ./run_benchmarks.sh f2           - Run F2 field tests (paper benchmark)"
+	@echo "  ./run_benchmarks.sh f3           - Run F3 field tests (paper benchmark)"
+	@echo "  ./run_benchmarks.sh f5           - Run F5 field tests (paper benchmark)"
+	@echo "  ./run_benchmarks.sh monotone     - Run monotone tests (paper benchmark)"
 
 $(TARGET): $(SRCS) $(HDRS)
 	$(CC) $(CFLAGS) -o $(TARGET) $(SRCS) $(LDFLAGS)

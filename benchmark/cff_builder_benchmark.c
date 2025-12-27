@@ -1,5 +1,5 @@
 /**
- * @file cff_builder.c
+ * @file cff_builder_benchmark.c
  * @brief Implementation of functions for Cover-Free Families (CFFs) construction.
  * 
  * This file contains the functions responsible for generating CFFs using
@@ -57,8 +57,8 @@ double benchmark_concatenation_time = 0.0;
  */
 
 /* Main Functions */
-void generate_cff(char construction, int d, long fq, long k);
-void embeed_cff(char construction, int d, long* Fq_steps, long* k_steps);
+void generate_cff(char construction, long fq, long k);
+void embed_cff(char construction, int d, long* Fq_steps, long* k_steps);
 generated_cffs generate_new_cff_blocks(char construction, int d, long* Fq_steps, long* k_steps, int num_steps);
 
 /* CFF Matrix Generation Functions */
@@ -131,11 +131,10 @@ void benchmark_reset_iteration(void) {
  * Creates a CFF from scratch using the provided parameters and saves it to file.
  * 
  * @param construction Construction type ('p' for polynomial, 'm' for monotone).
- * @param d CFF parameter d.
  * @param fq Finite field size.
  * @param k Maximum polynomial degree.
  */
-void generate_cff(char construction, int d, long fq, long k) {
+void generate_cff(char construction, long fq, long k) {
     double time1_start = 0.0, time1_end = 0.0;
     
     /* Reset iteration timers */
@@ -143,19 +142,15 @@ void generate_cff(char construction, int d, long fq, long k) {
         benchmark_reset_iteration();
     }
     
-    long t0, n0;
+    int d;
+    long t, n;
     
-    if (construction == 'm') {
-        t0 = (d * k + 1) * fq;
-        n0 = (long)pow(fq, k + 1);
-    } else {
-        d = (fq - 1) / k;
-        t0 = fq * fq;
-        n0 = (long)pow(fq, k + 1);
-    }
+    d = (fq-1)/k;
+    t = fq*fq;
+    n = (long)pow(fq, k + 1);
     
     char filename0[100];
-    snprintf(filename0, sizeof(filename0), "CFFs/%d-CFF(%ld,%ld).txt", d, t0, n0);
+    snprintf(filename0, sizeof(filename0), "CFFs/%d-CFF(%ld,%ld).txt", d, t, n);
 
     long fq_array[1] = { fq };
     long k_array[1] = { k };
@@ -207,7 +202,7 @@ void generate_cff(char construction, int d, long fq, long k) {
  * @param Fq_steps Array with finite field sizes.
  * @param k_steps Array with maximum polynomial degrees.
  */
-void embeed_cff(char construction, int d, long* Fq_steps, long* k_steps){
+void embed_cff(char construction, int d, long* Fq_steps, long* k_steps){
     double time1_start = 0.0, time1_end = 0.0;
     double concat_start = 0.0, concat_end = 0.0;
     
@@ -224,7 +219,7 @@ void embeed_cff(char construction, int d, long* Fq_steps, long* k_steps){
         t0 = (d * k_steps[0] + 1) * Fq_steps[0];
         n0 = (long)pow(Fq_steps[0], k_steps[0] + 1);
     } else {
-        d0 = (Fq_steps[0]-1)/(k_steps[0]);
+        d0 = (Fq_steps[0]-1)/k_steps[0];
         t0 = Fq_steps[0] * Fq_steps[0];
         n0 = (long)pow(Fq_steps[0], k_steps[0] + 1);
     }
@@ -278,7 +273,7 @@ void embeed_cff(char construction, int d, long* Fq_steps, long* k_steps){
         time1_start = get_time_seconds();
     }
 
-    generated_cffs new_blocks = generate_new_cff_blocks(construction, d, new_Fq_steps, new_k_steps, new_fqs_count);
+    generated_cffs new_blocks = generate_new_cff_blocks(construction, d0, new_Fq_steps, new_k_steps, new_fqs_count);
 
     long new_total_rows = old_rows + new_blocks.rows_new_old;
 
@@ -351,7 +346,7 @@ void embeed_cff(char construction, int d, long* Fq_steps, long* k_steps){
         t1 = (d * k_steps[0] + 1) * Fq_steps[1];
         n1 = (long)pow(Fq_steps[1], k_steps[0] + 1);
     } else {
-        d1 = (Fq_steps[1]-1)/(k_steps[1]);
+        d1 = (Fq_steps[1]-1)/k_steps[1];
         t1 = Fq_steps[1] * Fq_steps[1];
         n1 = (long)pow(Fq_steps[1], k_steps[1] + 1);
     }
@@ -413,15 +408,15 @@ generated_cffs generate_new_cff_blocks(char construction, int d, long* Fq_steps,
     int dk_size = 0;
     if(construction == 'p'){
         if (num_steps == 1) {
-            num_new_rows = (int)pow(Fq_steps[0], 2);
+            num_new_rows = (d*k_steps[0]+1)*Fq_steps[0];
         } else {
-            num_new_rows = (int)pow(Fq_steps[num_steps-1],2) - (int)pow(Fq_steps[num_steps-2],2);
+            num_new_rows = (Fq_steps[num_steps-1] * Fq_steps[num_steps-1]) - (Fq_steps[num_steps-2] * Fq_steps[num_steps-2]);
         }
         dk_size = Fq_steps[num_steps-1];
     } else if (construction == 'm') {
         num_new_rows = (d*k_steps[0]+1)*Fq_steps[num_steps-1] - (d*k_steps[num_steps-2]+1)*Fq_steps[num_steps-2];
         dk_size = d*k_steps[0]+1;
-    }; 
+    };  
 
     combination_partitions combos = generate_combinations(construction, dk_size, partitions, num_steps, ctx);
 
