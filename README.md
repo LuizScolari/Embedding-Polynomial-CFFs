@@ -14,7 +14,7 @@ They have important applications in:
 
 ## 🧮 Implemented Constructions
 
-The project focuses on algebraic construction using polynomials over finite fields ($\mathbb{F}_q$).
+The project focuses on algebraic construction using polynomials over finite fields.
 
 ### Polynomial Construction - Embedding CFFs
 
