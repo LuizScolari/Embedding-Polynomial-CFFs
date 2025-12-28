@@ -93,7 +93,7 @@ Note: When $d = (q-1)/k$, the minimum block size $(dk+1)q$ can yield fewer rows 
 
   * **Generate an initial CFF from scratch (`p f`):**
 
-      * Parameters: `<m|f>` (block size), `d` (target $d$), `q` (target $q$), `k` (target $k$).
+      * Parameters: `<m|f>` (block size), `d` (target `d`), `q` (target `q`), `k` (target `k`).
 
     <!-- end list -->
 
@@ -104,7 +104,7 @@ Note: When $d = (q-1)/k$, the minimum block size $(dk+1)q$ can yield fewer rows 
   * **Embedding CFF (Expansion) (`p g`):**
 
       * Expands an existing CFF to a larger field.
-      * Parameters: `<m|f>` (block size), `cff_file`, `d` (target $d$), `q` (target $q$), `k` (target $k$).
+      * Parameters: `<m|f>` (block size), `cff_file`, `d` (target `d`), `q` (target `q`), `k` (target `k`).
 
     <!-- end list -->
 
@@ -114,7 +114,7 @@ Note: When $d = (q-1)/k$, the minimum block size $(dk+1)q$ can yield fewer rows 
 
   * **Monotone CFF (Expansion) (`m g`):**
 
-      * Parameters: `cff_file`, `d` (fixed $d$), `q` (target $q$), `k` (fixed $k$).
+      * Parameters: `cff_file`, `d` (fixed `d`), `q` (target `q`), `k` (fixed `k`).
 
     <!-- end list -->
 
