@@ -86,6 +86,7 @@ The `generate_cff` executable supports different operation modes. Arguments vary
 **Block Size Option (Initial or Embedding CFFs only):**
   * `m` - Minimum block size, calculated as: $(dk+1)q$
   * `f` - Full block size, calculated as: $q^2$
+  
 Note: When $d = (q-1)/k$, the minimum block size $(dk+1)q$ can yield fewer rows than the full size $q^2$. Example: $\mathbb{F}_4$, $k=2$ → $12 < 16$ rows. If $d < (q-1)/k$, $(dk+1)q$ is always considered.
 
 #### Examples:
