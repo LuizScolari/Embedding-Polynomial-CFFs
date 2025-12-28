@@ -44,23 +44,66 @@ The following test suites were used in the paper and can be run with the benchma
 
 ### Individual Benchmark
 
-Using the script:
+#### Using the script:
+
 ```bash
+# Initial CFF: ./run_benchmarks.sh single p f <q> <k>
 ./run_benchmarks.sh single p f 2 1
+
+# Embedding CFFs: ./run_benchmarks.sh single p g <q0> <q1> <k0> <k1>
 ./run_benchmarks.sh single p g 2 4 1 1
+
+# Monotone CFFs: ./run_benchmarks.sh single m g <d> <q0> <q1> <k0> <k1>
 ./run_benchmarks.sh single m g 1 2 4 1 1
 ```
 
-Or directly with the executable:
+#### Using the executable directly:
+
+**Initial CFF (action `f`):**
 ```bash
-# Initial CFF
 ./generate_cff_benchmark benchmark p f <q> <k>
+```
+| Parameter | Description |
+|-----------|-------------|
+| `q` | Finite field size $\mathbb{F}_q$ |
+| `k` | Maximum polynomial degree |
 
-# Embedding CFFs
+Example:
+```bash
+./generate_cff_benchmark benchmark p f 2 1
+```
+
+**Embedding CFFs (action `g`, construction `p`):**
+```bash
 ./generate_cff_benchmark benchmark p g <q0> <q1> <k0> <k1>
+```
+| Parameter | Description |
+|-----------|-------------|
+| `q0` | Finite field size |
+| `q1` | Target finite field size |
+| `k0` | Initial polynomial degree |
+| `k1` | Target polynomial degree |
 
-# Monotone CFFs
+Example:
+```bash
+./generate_cff_benchmark benchmark p g 2 4 1 1
+```
+
+**Monotone CFFs (action `g`, construction `m`):**
+```bash
 ./generate_cff_benchmark benchmark m g <d> <q0> <q1> <k0> <k1>
+```
+| Parameter | Description |
+|-----------|-------------|
+| `d` | CFF parameter $d$ (fixed during embedding) |
+| `q0` | Finite field size |
+| `q1` | Target finite field size |
+| `k0` | Initial polynomial degree (fixed) |
+| `k1` | Target polynomial degree (fixed) |
+
+Example:
+```bash
+./generate_cff_benchmark benchmark m g 1 2 4 1 1
 ```
 
 ### Save Results to File
@@ -75,6 +118,22 @@ Runs the predefined fast tests and saves results to `benchmark_results.txt`.
 
 The program also works without benchmark (single execution):
 
+**Initial CFF:**
+```bash
+./generate_cff_benchmark p f <q> <k>
+```
+
+**Embedding CFFs:**
+```bash
+./generate_cff_benchmark p g <q0> <q1> <k0> <k1>
+```
+
+**Monotone CFFs:**
+```bash
+./generate_cff_benchmark m g <d> <q0> <q1> <k0> <k1>
+```
+
+Examples:
 ```bash
 ./generate_cff_benchmark p f 2 1
 ./generate_cff_benchmark p g 2 4 1 1

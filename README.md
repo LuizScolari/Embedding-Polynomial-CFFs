@@ -18,7 +18,7 @@ The project focuses on algebraic construction using polynomials over finite fiel
 
 ### Polynomial Construction - Embedding CFFs
 
-In this construction, matrix rows are indexed by pairs of elements $(x, y) \in B \times \mathbb{F}_q$ where $B \in \mathbb{F}_q$ , and columns are indexed by polynomials of degree up to $k$. A position in the matrix is set to $1$ if the corresponding polynomial evaluated at $x$ yields $y$ (i.e., $P(x) = y$), and $0$ otherwise.
+In this construction, matrix rows are indexed by pairs of elements $(x, y) \in B \times \mathbb{F}_q$ where $B \in \mathbb{F}_q$ , and columns are indexed by polynomials of degree up to $k$. A position in the matrix is set to $1$ if the corresponding polynomial evaluated at $x$ yields $y$ (i.e., $P(x) = y$), and 0 otherwise.
 
 ### Monotone CFFs
 
@@ -78,42 +78,47 @@ make
 
 ### 2\. Execution
 
-The `generate_cff` executable supports different operation modes. Arguments vary according to the construction type (`p` for polynomial, `m` for monotone) and action (`f` to generate from scratch, `g` for embedding/expansion).
+The `generate_cff` executable supports different operation modes. Arguments vary according to the construction type (`p` for initial and embedding CFFs, `m` for monotone CFFs) and action (`f` to generate initial CFF, `g` for embedding/expansion).
 
 **General Syntax:**
 `./generate_cff <type> <action> [parameters...]`
+
+**Block Size Option (Initial or Embedding CFFs only):**
+  * `m` - Minimum block size, calculated as: $(dk+1)q$
+  * `f` - Full block size, calculated as: $q^2$
+Note: When $d = (q-1)/k$, the minimum block size $(dk+1)q$ can yield fewer rows than the full size $q^2$. Example: $\mathbb{F}_4$, $k=2$ → $12 < 16$ rows. If $d < (q-1)/k$, $(dk+1)q$ is always considered.
 
 #### Examples:
 
   * **Generate an initial CFF from scratch (`p f`):**
 
-      * Parameters: `q` (field size), `k` (degree).
+      * Parameters: `<m|f>` (block size), `d` (target $d$), `q` (target $q$), `k` (target $k$).
 
     <!-- end list -->
 
     ```bash
-    ./generate_cff p f 3 1
+    ./generate_cff p f m 2 3 1
     ```
 
   * **Embedding CFF (Expansion) (`p g`):**
 
-      * Expands from a smaller field to a larger one.
-      * Parameters: `initial_q` `final_q` `initial_k` `final_k`.
+      * Expands an existing CFF to a larger field.
+      * Parameters: `<m|f>` (block size), `cff_file`, `d` (target $d$), `q` (target $q$), `k` (target $k$).
 
     <!-- end list -->
 
     ```bash
-    ./generate_cff p g 3 9 1 1
+    ./generate_cff p g m CFFs/cff_input.txt 2 9 1
     ```
 
   * **Monotone CFF (Expansion) (`m g`):**
 
-      * Parameters: `d` `initial_q` `final_q` `initial_k` `final_k`.
+      * Parameters: `cff_file`, `d` (fixed $d$), `q` (target $q$), `k` (fixed $k$).
 
     <!-- end list -->
 
     ```bash
-    ./generate_cff m g 2 3 9 1 1
+    ./generate_cff m g CFFs/cff_input.txt 2 9 1
     ```
 
 Output files will be generated in the `CFFs/` folder.
