@@ -5,7 +5,6 @@
  * This program allows generating initial CFFs or expanding existing CFFs
  * using polynomial or monotone constructions over finite fields.
  */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include "cff_builder.h"
@@ -17,9 +16,9 @@
  * Processes command line arguments to generate or expand CFFs.
  * 
  * Usage:
- *   - Polynomial embedding: ./generate_cff p g <q0> <q1> <k0> <k1>
- *   - Polynomial from scratch: ./generate_cff p f <q> <k>
- *   - Monotone embedding: ./generate_cff m g <d> <q0> <q1> <k0> <k1>
+ *   - Polynomial first: ./generate_cff p f <m|f> <d> <q> <k>
+ *   - Embedding CFFs:   ./generate_cff p g <m|f> <cff_file> <d> <q> <k>
+ *   - Monotone CFFs:    ./generate_cff m g <cff_file> <d> <q> <k>
  * 
  * @param argc Number of arguments.
  * @param argv Array of arguments.
@@ -30,53 +29,58 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Error: Insufficient arguments.\n");
         return 1;
     }
-
+    
     char construction = argv[1][0];
     char action = argv[2][0];
+    char block_size = '\0';
+
+    if (construction == 'p') {
+        if (argc < 4) {
+            fprintf(stderr, "Error: Missing block size for polynomial construction.\n");
+            return 1;
+        }
+        block_size = argv[3][0];
+    }
 
     mkdir("CFFs", 0777);
 
     if (action == 'g') {
         if (construction == 'p') {
-            if (argc != 7) {
+            if (argc != 8) {
                 fprintf(stderr, "Error (p g): Incorrect number of arguments.\n");
+                fprintf(stderr, "Usage: ./generate_cff p g <m|f> <cff_file> <d> <q> <k>\n");
+                return 1;
+            }
+            if (block_size != 'm' && block_size != 'f') {
+                fprintf(stderr, "Error: Block size must be 'm' (minimum) or 'f' (full).\n");
                 return 1;
             }
         }
 
         if (construction == 'm') {
-            if (argc != 8) {
+            if (argc != 7) {
                 fprintf(stderr, "Error (m g): Incorrect number of arguments.\n");
+                fprintf(stderr, "Usage: ./generate_cff m g <cff_file> <d> <q> <k>\n");
                 return 1;
             }
         }
 
-        long* Fq_steps = malloc(2 * sizeof(long));
-        long* k_steps = malloc(2 * sizeof(long));
-        if (Fq_steps == NULL || k_steps == NULL) {
-            perror("Error: Failed to allocate memory");
-            free(Fq_steps); free(k_steps);
-            return 1;
-        }
-        
         int d = 0;
-        if(construction == 'p'){
-            Fq_steps[0] = atol(argv[3]); 
-            Fq_steps[1] = atol(argv[4]);
-            k_steps[0] = atol(argv[5]);  
-            k_steps[1] = atol(argv[6]); 
-        } else if (construction == 'm'){
-            d = atol(argv[3]); 
-            Fq_steps[0] = atol(argv[4]); 
-            Fq_steps[1] = atol(argv[5]);
-            k_steps[0] = atol(argv[6]);  
-            k_steps[1] = atol(argv[7]); 
+        long Fq = 0, k = 0;
+        char *cff_file = NULL;
+        if (construction == 'p') {
+            cff_file = argv[4];
+            d = atoi(argv[5]);
+            Fq = atol(argv[6]);
+            k = atol(argv[7]);
+        } else if (construction == 'm') {
+            cff_file = argv[3];
+            d = atoi(argv[4]);
+            Fq = atol(argv[5]);
+            k = atol(argv[6]);
         }
 
-        embeed_cff(construction, d, Fq_steps, k_steps);
-
-        free(Fq_steps);
-        free(k_steps);
+        embed_cff(construction, block_size, cff_file, d, Fq, k);
 
     } else if (action == 'f') {
         if (construction != 'p') {
@@ -84,16 +88,23 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "For monotone construction ('m'), use only action 'g' (embedding).\n");
             return 1;
         }
-        
-        if (argc != 5) {
-            fprintf(stderr, "Error (p f): Incorrect number of arguments. Usage: ./generate_cff p f <q> <k>\n");
+
+        if (argc != 7) {
+            fprintf(stderr, "Error (p f): Incorrect number of arguments.\n");
+            fprintf(stderr, "Usage: ./generate_cff p f <m|f> <d> <q> <k>\n");
             return 1;
         }
-        
-        long fq = atol(argv[3]);
-        long k = atol(argv[4]);
 
-        generate_cff(construction, 0, fq, k);
+        if (block_size != 'm' && block_size != 'f') {
+            fprintf(stderr, "Error: Block size must be 'm' (minimum) or 'f' (full).\n");
+            return 1;
+        }
+
+        int d = atoi(argv[4]);
+        long Fq = atol(argv[5]);
+        long k = atol(argv[6]);
+
+        generate_cff(construction, block_size, d, Fq, k);
 
     } else {
         fprintf(stderr, "Error: Unknown action '%c'. Use 'g' or 'f'.\n", action);

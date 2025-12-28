@@ -32,9 +32,9 @@ static int global_ctx_initialized = 0;
  */
 
 /* Main Functions */
-void generate_cff(char construction, int d, long fq, long k);
-void embeed_cff(char construction, int d, long* Fq_steps, long* k_steps);
-generated_cffs generate_new_cff_blocks(char construction, int d, long* Fq_steps, long* k_steps, int num_steps);
+void generate_cff(char construction, char block_size, int d, long fq, long k);
+void embed_cff(char construction, char block_size, const char *cff_file, int d, long Fq, long k);
+generated_cffs generate_new_cff_blocks(char construction, char block_size, int d, long* Fq_steps, long* k_steps, int num_steps);
 
 /* CFF Matrix Generation Functions */
 uint64_t** generate_single_cff(long* num_rows, const element_pair* combos, long num_combos, GHashTable* inverted_evals, long num_polys);
@@ -83,22 +83,21 @@ static void free_polynomial_partition(polynomial_partition* poly_part, const fq_
  * 
  * Creates a CFF from scratch using the provided parameters and saves it to file.
  * 
- * @param construction Construction type ('p' for polynomial, 'm' for monotone).
+ * @param construction Construction type ('p' for embedding CFFs, 'm' for monotone CFFs).
+ * @param block_size Define the size of CFF rows.
  * @param d CFF parameter d.
  * @param fq Finite field size.
  * @param k Maximum polynomial degree.
  */
-void generate_cff(char construction, int d, long fq, long k) {
+void generate_cff(char construction, char block_size, int d, long fq, long k) {
     long t0, n0;
     
-    if (construction == 'm') {
-        t0 = (d * k + 1) * fq;
-        n0 = (long)pow(fq, k + 1);
+    if(block_size == 'f'){
+        t0 = fq*fq;
     } else {
-        d = (fq - 1) / k;
-        t0 = fq * fq;
-        n0 = (long)pow(fq, k + 1);
+        t0 = (d*k+1) * fq;
     }
+    n0 = (long)pow(fq, k + 1);
     
     char filename0[100];
     snprintf(filename0, sizeof(filename0), "CFFs/%d-CFF(%ld,%ld).txt", d, t0, n0);
@@ -108,7 +107,7 @@ void generate_cff(char construction, int d, long fq, long k) {
     long k_array[1] = { k };
     int num_steps = 1;
 
-    generated_cffs new_blocks = generate_new_cff_blocks(construction, d, fq_array, k_array, num_steps);
+    generated_cffs new_blocks = generate_new_cff_blocks(construction, block_size, d, fq_array, k_array, num_steps);
 
     uint64_t** final_cff = new_blocks.cff_new;
     long final_rows = new_blocks.rows_new;
@@ -134,36 +133,23 @@ void generate_cff(char construction, int d, long fq, long k) {
  * Reads an existing CFF from file and expands it to a larger finite field,
  * generating the necessary new blocks and saving the expanded CFF.
  * 
- * @param construction Construction type ('p' for polynomial, 'm' for monotone).
+ * @param construction Construction type ('p' for embedding CFFs, 'm' for monotone CFFs).
+ * @param block_size Define the size of CFF rows.
+ * @param cff_file File name to CFF storage.
  * @param d CFF parameter d.
- * @param Fq_steps Array with finite field sizes.
- * @param k_steps Array with maximum polynomial degrees.
+ * @param Fq New CFF parameter Fq.
+ * @param k New CFF parameter k.
  */
-void embeed_cff(char construction, int d, long* Fq_steps, long* k_steps){
-    int d0;
-    long t0, n0;
-    
-    if (construction == 'm') {
-        d0 = d;
-        t0 = (d * k_steps[0] + 1) * Fq_steps[0];
-        n0 = (long)pow(Fq_steps[0], k_steps[0] + 1);
-    } else {
-        d0 = (Fq_steps[0]-1)/(k_steps[0]);
-        t0 = Fq_steps[0] * Fq_steps[0];
-        n0 = (long)pow(Fq_steps[0], k_steps[0] + 1);
-    }
-    
-    char filename0[100]; 
-    snprintf(filename0, sizeof(filename0), "CFFs/%d-CFF(%ld,%ld).txt", d0, t0, n0);
+void embed_cff(char construction, char block_size, const char *cff_file, int d, long Fq, long k){
 
     long old_rows = 0, old_cols = 0;
-    struct cff_parameters* params = read_parameters(filename0);
+    struct cff_parameters* params = read_parameters(cff_file);
     if (params == NULL) {
-        printf("Error reading parameters from file %s\n", filename0);
+        printf("Error reading parameters from file %s\n", cff_file);
         return;
     }
 
-    uint64_t** cff_old_old = read_cff_from_file(filename0, &old_rows, &old_cols);
+    uint64_t** cff_old_old = read_cff_from_file(cff_file, &old_rows, &old_cols);
 
     int new_fqs_count = params->fqs_count + 1;
     int new_ks_count = params->ks_count + 1;
@@ -185,7 +171,7 @@ void embeed_cff(char construction, int d, long* Fq_steps, long* k_steps){
         if (i < params->fqs_count) { 
             new_Fq_steps[i] = (long)params->Fqs[i];
         } else {
-            new_Fq_steps[i] = Fq_steps[1];
+            new_Fq_steps[i] = Fq;
         }
     }
 
@@ -193,11 +179,11 @@ void embeed_cff(char construction, int d, long* Fq_steps, long* k_steps){
         if (i < params->ks_count) { 
             new_k_steps[i] = (long)params->ks[i];
         } else {
-            new_k_steps[i] = k_steps[1];
+            new_k_steps[i] = k;
         }
     }
 
-    generated_cffs new_blocks = generate_new_cff_blocks(construction, d, new_Fq_steps, new_k_steps, new_fqs_count);
+    generated_cffs new_blocks = generate_new_cff_blocks(construction, block_size, d, new_Fq_steps, new_k_steps, new_fqs_count);
 
     long new_total_rows = old_rows + new_blocks.rows_new_old;
 
@@ -243,23 +229,28 @@ void embeed_cff(char construction, int d, long* Fq_steps, long* k_steps){
         }
     }
 
-    int d1;
-    long t1, n1;
+    long t1 = 0, n1 = 0;
     
     if (construction == 'm') {
-        d1 = d;
-        t1 = (d * k_steps[0] + 1) * Fq_steps[1];
-        n1 = (long)pow(Fq_steps[1], k_steps[0] + 1);
+        t1 = (d * k + 1) * Fq;
+        n1 = (long)pow(Fq, k + 1);
     } else {
-        d1 = (Fq_steps[1]-1)/(k_steps[1]);
-        t1 = Fq_steps[1] * Fq_steps[1];
-        n1 = (long)pow(Fq_steps[1], k_steps[1] + 1);
+        if(d < ((Fq-1)/k)){
+            t1 = (d*k+1)*Fq;
+        } else {
+            if(block_size == 'f'){
+                t1 = (Fq * Fq);
+            } else {
+                t1 = (d*k+1)*Fq;
+            }
+        }
+        n1 = (long)pow(Fq, k + 1);
     }
     
     char filename1[100]; 
-    snprintf(filename1, sizeof(filename1), "CFFs/%d-CFF(%ld,%ld).txt", d1, t1, n1);
+    snprintf(filename1, sizeof(filename1), "CFFs/%d-CFF(%ld,%ld).txt", d, t1, n1);
 
-    write_cff_to_file(filename1, construction, d1, new_Fq_steps, new_fqs_count, new_k_steps, new_ks_count, final_cff, new_total_rows, new_total_cols);
+    write_cff_to_file(filename1, construction, d, new_Fq_steps, new_fqs_count, new_k_steps, new_ks_count, final_cff, new_total_rows, new_total_cols);
 
     free_matrix(cff_old_old, old_rows);
     free_generated_cffs(&new_blocks);
@@ -278,13 +269,14 @@ void embeed_cff(char construction, int d, long* Fq_steps, long* k_steps){
  * to expand a CFF: old_new, new_old, and new_new.
  * 
  * @param construction Construction type ('p' or 'm').
+ * @param block_size Define the size of CFF rows.
  * @param d CFF parameter d (used for monotone construction).
  * @param Fq_steps Array with finite field sizes.
  * @param k_steps Array with maximum polynomial degrees.
  * @param num_steps Number of steps.
  * @return Structure containing the three generated blocks.
  */
-generated_cffs generate_new_cff_blocks(char construction, int d, long* Fq_steps, long* k_steps, int num_steps) {
+generated_cffs generate_new_cff_blocks(char construction, char block_size, int d, long* Fq_steps, long* k_steps, int num_steps) {
     generated_cffs result = {0};
     
     long q_final = Fq_steps[num_steps - 1];  
@@ -310,11 +302,35 @@ generated_cffs generate_new_cff_blocks(char construction, int d, long* Fq_steps,
     int dk_size = 0;
     if(construction == 'p'){
         if (num_steps == 1) {
-            num_new_rows = (int)pow(Fq_steps[0], 2);
+            if(d < ((Fq_steps[0]-1)/k_steps[0])){
+                num_new_rows = (d*k_steps[0]+1)*Fq_steps[0];
+                dk_size = (d*k_steps[0])+1;
+            } else {
+                if(block_size == 'f'){
+                    num_new_rows = (Fq_steps[0] * Fq_steps[0]);
+                    dk_size = Fq_steps[0];
+                } else {
+                    num_new_rows = (d*k_steps[0]+1)*Fq_steps[0];
+                    dk_size = (d*k_steps[0])+1;
+                }
+            }
         } else {
-            num_new_rows = (int)pow(Fq_steps[num_steps-1],2) - (int)pow(Fq_steps[num_steps-2],2);
+            if(Fq_steps[num_steps-1] != Fq_steps[num_steps-2]){
+                if(d < ((Fq_steps[num_steps-1]-1)/k_steps[num_steps-1])){
+                    num_new_rows = ((d*k_steps[num_steps-1]+1)*Fq_steps[num_steps-1]) - (Fq_steps[num_steps-2] * Fq_steps[num_steps-2]);
+                    dk_size = d*k_steps[num_steps-1]+1;
+                } else {
+                    if(block_size == 'f'){
+                        num_new_rows = (Fq_steps[num_steps-1] * Fq_steps[num_steps-1]) - (Fq_steps[num_steps-2] * Fq_steps[num_steps-2]);
+                        dk_size = Fq_steps[num_steps-1];
+                    } else {
+                        num_new_rows = ((d*k_steps[num_steps-1]+1)*Fq_steps[num_steps-1]) - (Fq_steps[num_steps-2] * Fq_steps[num_steps-2]);
+                        dk_size = d*k_steps[num_steps-1]+1;
+                        printf("%ld, %d\n", num_new_rows, dk_size);
+                    }
+                }
+            } 
         }
-        dk_size = Fq_steps[num_steps-1];
     } else if (construction == 'm') {
         num_new_rows = (d*k_steps[0]+1)*Fq_steps[num_steps-1] - (d*k_steps[num_steps-2]+1)*Fq_steps[num_steps-2];
         dk_size = d*k_steps[0]+1;
@@ -630,9 +646,9 @@ void add_pair_to_list(element_pair** list, long* count, long* capacity, const fq
     (*count)++;
 }
 
-/* =============================================================================
- * POLYNOMIAL HELPER FUNCTIONS
- * ========================================================================== */
+/*
+ *  POLYNOMIAL HELPER FUNCTIONS
+ */
 
 /**
  * @brief Partitions polynomials into "old" and "new" based on subfields.

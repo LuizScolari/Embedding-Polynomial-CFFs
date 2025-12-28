@@ -121,21 +121,24 @@ typedef struct {
 /**
  * @brief Performs embedding of an existing CFF to a larger field.
  * 
- * @param construction Construction type ('p' for polynomial, 'm' for monotone).
+ * @param construction Construction type ('p' for embedding CFFs, 'm' for monotone CFFs).
+ * @param block_size Define the size of CFF rows.
+ * @param cff_file File name to CFF storage.
  * @param d CFF parameter d.
- * @param Fq_steps Array with finite field sizes.
- * @param k_steps Array with maximum polynomial degrees.
+ * @param Fq New CFF parameter Fq.
+ * @param k New CFF parameter k.
  */
-void embeed_cff(char construction, int d, long* Fq_steps, long* k_steps);
+void embed_cff(char construction, char block_size, const char *cff_file, int d, long Fq, long k);
 
 /**
  * @brief Generates an initial CFF from basic parameters.
  * 
- * @param construction Construction type ('p' for polynomial, 'm' for monotone).
+ * @param construction Construction type ('p' for initial CFF).
+ * @param block_size Define the size of CFF rows.
  * @param d CFF parameter d.
- * @param fq Finite field size.
- * @param k Maximum polynomial degree.
+ * @param fq CFF parameter Fq.
+ * @param k CFF parameter k.
  */
-void generate_cff(char construction, int d, long fq, long k);
+void generate_cff(char construction, char block_size, int d, long fq, long k);
 
 #endif /* CFF_BUILDER_H */
