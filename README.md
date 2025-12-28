@@ -18,7 +18,7 @@ The project focuses on algebraic construction using polynomials over finite fiel
 
 ### Polynomial Construction - Embedding CFFs
 
-In this construction, matrix rows are indexed by pairs of elements $(x, y) \in B \times \mathbb{F}_q$ where $B \in \mathbb{F}_q$ , and columns are indexed by polynomials of degree up to $k$. A position in the matrix is set to $1$ if the corresponding polynomial evaluated at $x$ yields $y$ (i.e., `P(x) = y`), and `0` otherwise.
+In this construction, matrix rows are indexed by pairs of elements $(x, y) \in B \times \mathbb{F}_q$ where $B \in \mathbb{F}_q$ , and columns are indexed by polynomials of degree up to $k$. A position in the matrix is set to $1$ if the corresponding polynomial evaluated at $x$ yields $y$ (i.e., P(x) = y), and $0$ otherwise.
 
 ### Monotone CFFs
 
